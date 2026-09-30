@@ -1,62 +1,147 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="sky">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sitewordy</title>
+    <meta name="theme-color" content="#4f8fe6">
+    <title>Sitewordy · Sight words and phonics practice for kids</title>
+    <meta name="description" content="Sitewordy helps children ages 3–8 learn sight words, letters, and blends with talking flash cards, listening games, and a sticker book that makes practice fun.">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="default">
-    <header>
-        <nav>
-            <ul>
-                <li><a href="index.html">Home</a></li>
-                <li><a href="game.html">Start Game</a></li>
-            </ul>
+<body>
+    <header class="site-header">
+        <a href="index.html" class="brand"><span class="brand-mark" aria-hidden="true">S</span>Sitewordy</a>
+        <nav aria-label="Main">
+            <a href="#how">How it works</a>
+            <a href="#lists">Word lists</a>
+            <a href="game.html" class="big-btn brand" style="min-height:48px;padding:8px 20px;font-size:1.1rem">Play</a>
         </nav>
-        <h1>Welcome to Sitewordy</h1>
     </header>
+
     <main>
-        <section class="introduction">
-            <h2>Learn and Practice Site Words</h2>
-            <p>Sitewordy helps children learn and practice site words in a fun and interactive way. Perfect for kids aged 2-8.</p>
-        </section>
-        <section class="features">
-            <h2>Features</h2>
-            <ul>
-                <li>Randomly generated site words</li>
-                <li>Interactive timer</li>
-                <li>Score tracking</li>
-                <li>Fun animations and feedback</li>
-                <li>Customizable themes</li>
-                <li>Ability for parents to add custom words</li>
-            </ul>
-        </section>
-        <section class="age-groups">
-            <!-- <h2>Select Age Group</h2>
-            <div class="card-container">
-                <div class="age-card" data-age-group="2-4">
-                    <button class="btn age-btn">2-4 years</button>
-                    <p class="fact">Kids aged 2-4 are starting to learn basic words and concepts.</p>
-                </div> -->
-                <!-- <div class="age-card" data-age-group="5-6">
-                    <button class="btn age-btn">5-6 years</button>
-                    <p class="fact">Kids aged 5-6 can recognize and spell simple words.</p>
+        <section class="hero">
+            <div>
+                <h1>Reading starts with <em>words they know by sight.</em></h1>
+                <p>Talking flash cards, listening games, and a sticker book that turns sight word and phonics practice into something kids ask for.</p>
+                <div class="hero-actions">
+                    <a href="game.html" class="big-btn brand">Start practicing</a>
+                    <span class="muted">Free to try · No sign-up · Ages 3–8</span>
                 </div>
-                <div class="age-card" data-age-group="7-8">
-                    <button class="btn age-btn">7-8 years</button>
-                    <p class="fact">Kids aged 7-8 are expanding their vocabulary and reading skills.</p>
-                </div> -->
+            </div>
+            <div class="hero-card" aria-hidden="true">
+                <span class="hero-badge">⭐ Got it!</span>
+                <div class="word-text"><mark>fr</mark>og</div>
+                <div class="hero-tiles">
+                    <span class="tile focus">f</span><span class="tile focus">r</span><span class="tile">o</span><span class="tile">g</span>
+                </div>
             </div>
         </section>
-        <section class="call-to-action">
-            <h2>Ready to start?</h2>
-            <a href="game.html" class="btn start-btn">Start Game</a>
+
+        <div class="band">
+            <section class="section" aria-labelledby="features-title">
+                <h2 id="features-title">Practice that feels like play</h2>
+                <p class="lead">Short, focused rounds with lots of encouragement. Every word can be heard out loud, so kids are never stuck.</p>
+                <div class="feature-grid">
+                    <div class="feature">
+                        <div class="f-emoji" aria-hidden="true">🃏</div>
+                        <h3>Talking flash cards</h3>
+                        <p>Big, clear words in a font made for early readers. Tap any word to hear it.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="f-emoji" aria-hidden="true">👂</div>
+                        <h3>Find It! game</h3>
+                        <p>Kids hear a word and tap the matching card, so they can practice on their own.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="f-emoji" aria-hidden="true">🧩</div>
+                        <h3>Blend it</h3>
+                        <p>Letter tiles slide together to show how sounds blend into a word.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="f-emoji" aria-hidden="true">🎤</div>
+                        <h3>Read it to me</h3>
+                        <p>On supported browsers, kids read into the microphone and Sitewordy listens.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="f-emoji" aria-hidden="true">🦄</div>
+                        <h3>Stars &amp; stickers</h3>
+                        <p>Every word earns a star. Stars unlock stickers for their very own sticker book.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="f-emoji" aria-hidden="true">📈</div>
+                        <h3>Progress for grown-ups</h3>
+                        <p>See which words are learned and which are tricky. Missed words come back for more practice.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <section class="section" id="how" aria-labelledby="how-title">
+            <h2 id="how-title">How it works</h2>
+            <p class="lead">Five minutes a day is plenty.</p>
+            <div class="steps">
+                <div class="step">
+                    <h3>Pick a list</h3>
+                    <p>Choose your child's grade level, a phonics skill, or your own words.</p>
+                </div>
+                <div class="step">
+                    <h3>Play a round</h3>
+                    <p>10 or 20 words at a time. Words they haven't learned yet come first.</p>
+                </div>
+                <div class="step">
+                    <h3>Watch them grow</h3>
+                    <p>A word counts as learned after 3 correct answers. Collect stars along the way.</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="band">
+            <section class="section" id="lists" aria-labelledby="lists-title">
+                <h2 id="lists-title">Word lists teachers use</h2>
+                <p class="lead">Organized by grade, the way classrooms teach them, plus phonics skills in the order kids learn them.</p>
+                <div class="lists-cols">
+                    <div class="feature">
+                        <h3>👀 Sight words</h3>
+                        <ul>
+                            <li><strong>Dolch Pre-K</strong> · 40 words</li>
+                            <li><strong>Dolch Kindergarten</strong> · 52 words</li>
+                            <li><strong>Dolch 1st Grade</strong> · 41 words</li>
+                            <li><strong>Dolch 2nd Grade</strong> · 46 words</li>
+                            <li><strong>Dolch 3rd Grade</strong> · 41 words</li>
+                            <li><strong>Fry Instant Words</strong> · first 200</li>
+                            <li><strong>My Words</strong> · add your own</li>
+                        </ul>
+                    </div>
+                    <div class="feature">
+                        <h3>🧩 Phonics &amp; blends</h3>
+                        <ul>
+                            <li><strong>ABCs</strong> · upper and lowercase</li>
+                            <li><strong>Short vowels</strong> · CVC words like c-a-t</li>
+                            <li><strong>L, R, and S blends</strong> · bl, tr, st…</li>
+                            <li><strong>3-letter blends</strong> · str, spl, thr…</li>
+                            <li><strong>Ending blends</strong> · nd, mp, st…</li>
+                            <li><strong>Digraphs</strong> · sh, ch, th, wh, ck, ph</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <section class="section cta" aria-labelledby="cta-title">
+            <h2 id="cta-title">Ready to read?</h2>
+            <p class="lead">Works in any web browser on tablets, phones, and computers.</p>
+            <a href="game.html" class="big-btn brand">Start practicing</a>
         </section>
     </main>
-    <footer>
-        <p>&copy; 2024 Sitewordy. All rights reserved.</p>
+
+    <footer class="site-footer">
+        <p>&copy; <span id="year">2026</span> Sitewordy. Made for curious young readers.</p>
     </footer>
-    <script src="index.js"></script>
+    <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
 </html>

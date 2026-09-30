@@ -1,97 +1,204 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="sky">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Site Word Game</title>
-    <link rel="stylesheet" href="game.css">
+    <meta name="theme-color" content="#4f8fe6">
+    <title>Play · Sitewordy</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body class="default">
-    <header>
-        <nav>
-            <ul>
-                <li><a href="index.html">Go to Home</a></li>
-                <li><a href="#" id="back-to-setup-nav">Back to Setup</a></li>
-                <li>
-                    <label for="volume-toggle">Sound: </label>
-                    <input type="checkbox" id="volume-toggle" checked>
-                </li>
-            </ul>
-        </nav>
-        <h1>Site Word Game</h1>
-    </header>
-    <main>
+<body class="app">
+    <!-- ================= HOME: pick a word list ================= -->
+    <section id="screen-home" class="screen" aria-labelledby="home-title">
+        <header class="topbar">
+            <a href="index.html" class="brand" aria-label="Sitewordy home">
+                <span class="brand-mark" aria-hidden="true">S</span>Sitewordy
+            </a>
+            <div class="topbar-actions">
+                <button type="button" class="chip-btn" id="open-stickers" aria-label="Open sticker book">
+                    <span aria-hidden="true">⭐</span> <span id="star-total">0</span>
+                </button>
+                <button type="button" class="chip-btn" id="open-grownups">
+                    <span aria-hidden="true">⚙️</span> Grown-ups
+                </button>
+            </div>
+        </header>
 
-        <div class="container">
-            <div id="setup-card" class="card">
-                <h2>Game Setup</h2>
-                <label for="num-words">Number of Words:</label>
-                    <select id="num-words">
-                        <option value="10">10</option>
-                        <option value="20">20</option>
-                        <option value="30">30</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
+        <main class="home-main">
+            <h1 id="home-title" class="home-title">What do you want to practice?</h1>
+
+            <h2 class="group-title"><span aria-hidden="true">👀</span> Sight Words</h2>
+            <div class="list-grid" id="sight-lists"></div>
+
+            <h2 class="group-title"><span aria-hidden="true">🧩</span> Phonics &amp; Blends</h2>
+            <div class="list-grid" id="phonics-lists"></div>
+        </main>
+    </section>
+
+    <!-- ================= PLAY ================= -->
+    <section id="screen-play" class="screen" hidden aria-label="Practice">
+        <header class="play-bar">
+            <button type="button" class="icon-btn" id="exit-play" aria-label="Stop and go back">✕</button>
+            <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="round-progress"></div></div>
+            <div class="round-stars" aria-live="polite"><span aria-hidden="true">⭐</span> <span id="round-stars">0</span></div>
+        </header>
+
+        <main class="play-main">
+            <!-- Flash cards -->
+            <div id="flash-view" class="mode-view" hidden>
+                <div class="timer-track" id="timer-track" hidden><div class="timer-fill" id="timer-fill"></div></div>
+                <button type="button" class="word-card" id="flash-word" aria-label="Hear this word">
+                    <span class="word-text" id="flash-text"></span>
+                    <span class="tiles" id="flash-tiles" hidden></span>
+                    <span class="card-hint">Tap to hear it</span>
+                </button>
+                <div class="helper-row">
+                    <button type="button" class="helper-btn" id="hear-btn"><span aria-hidden="true">🔊</span> Hear it</button>
+                    <button type="button" class="helper-btn" id="blend-btn" hidden><span aria-hidden="true">🧩</span> Blend it</button>
+                    <button type="button" class="helper-btn mic" id="mic-btn" hidden><span aria-hidden="true">🎤</span> <span class="mic-label">Read it to me</span></button>
+                </div>
+                <p class="feedback" id="flash-feedback" aria-live="polite"></p>
+                <div class="answer-row">
+                    <button type="button" class="big-btn again" id="again-btn"><span aria-hidden="true">🔁</span> Practice again</button>
+                    <button type="button" class="big-btn gotit" id="gotit-btn"><span aria-hidden="true">👍</span> Got it!</button>
+                </div>
+            </div>
+
+            <!-- Find it -->
+            <div id="find-view" class="mode-view" hidden>
+                <div class="find-prompt">
+                    <button type="button" class="speaker-btn" id="find-speak" aria-label="Hear the word again">🔊</button>
+                    <p id="find-label">Find the word you hear!</p>
+                </div>
+                <div class="choices" id="find-choices"></div>
+                <p class="feedback" id="find-feedback" aria-live="polite"></p>
+            </div>
+        </main>
+    </section>
+
+    <!-- ================= DONE ================= -->
+    <section id="screen-done" class="screen" hidden aria-labelledby="done-title">
+        <main class="done-main">
+            <div class="done-card">
+                <div class="done-stars" id="done-stars" aria-hidden="true"></div>
+                <h1 id="done-title">Great job!</h1>
+                <p id="done-summary" class="done-summary"></p>
+                <div id="new-sticker" class="new-sticker" hidden></div>
+                <div id="practice-wrap" hidden>
+                    <h2 class="small-title">Words to keep practicing</h2>
+                    <div class="word-chips" id="practice-words"></div>
+                </div>
+                <div class="done-actions">
+                    <button type="button" class="big-btn again" id="practice-missed-btn" hidden><span aria-hidden="true">🔁</span> Practice these</button>
+                    <button type="button" class="big-btn gotit" id="play-again-btn"><span aria-hidden="true">▶️</span> Play again</button>
+                    <button type="button" class="link-btn" id="new-list-btn">Pick different words</button>
+                </div>
+            </div>
+        </main>
+    </section>
+
+    <!-- ================= DIALOG: choose a game ================= -->
+    <dialog id="mode-dialog" class="sheet" aria-labelledby="mode-title">
+        <form method="dialog" class="sheet-inner">
+            <button type="submit" class="icon-btn sheet-close" value="cancel" aria-label="Close">✕</button>
+            <p class="sheet-eyebrow" id="mode-eyebrow"></p>
+            <h2 id="mode-title">How do you want to play?</h2>
+            <div class="mode-options">
+                <button type="submit" class="mode-option" value="flash">
+                    <span class="mode-emoji" aria-hidden="true">🃏</span>
+                    <span><strong>Flash Cards</strong><small>Read each word out loud. Great with a grown-up!</small></span>
+                </button>
+                <button type="submit" class="mode-option" value="find">
+                    <span class="mode-emoji" aria-hidden="true">👂</span>
+                    <span><strong>Find It!</strong><small>Listen to the word, then tap the right card.</small></span>
+                </button>
+            </div>
+            <fieldset class="segmented">
+                <legend>How many words?</legend>
+                <label><input type="radio" name="round-size" value="10" checked><span>10</span></label>
+                <label><input type="radio" name="round-size" value="20"><span>20</span></label>
+                <label><input type="radio" name="round-size" value="0"><span>All</span></label>
+            </fieldset>
+        </form>
+    </dialog>
+
+    <!-- ================= DIALOG: sticker book ================= -->
+    <dialog id="sticker-dialog" class="sheet" aria-labelledby="sticker-title">
+        <form method="dialog" class="sheet-inner">
+            <button type="submit" class="icon-btn sheet-close" aria-label="Close">✕</button>
+            <h2 id="sticker-title">My Sticker Book</h2>
+            <p class="muted" id="sticker-next"></p>
+            <div class="sticker-grid" id="sticker-grid"></div>
+        </form>
+    </dialog>
+
+    <!-- ================= DIALOG: grown-ups ================= -->
+    <dialog id="grownups-dialog" class="sheet wide" aria-labelledby="grownups-title">
+        <div class="sheet-inner">
+            <form method="dialog"><button type="submit" class="icon-btn sheet-close" aria-label="Close">✕</button></form>
+            <h2 id="grownups-title">Grown-ups Corner</h2>
+
+            <div class="settings">
+                <label class="setting">
+                    <span>Sound effects</span>
+                    <input type="checkbox" id="set-sound" class="switch">
+                </label>
+                <label class="setting">
+                    <span>Voice speed</span>
+                    <select id="set-rate">
+                        <option value="0.7">Slow</option>
+                        <option value="0.85">Normal</option>
+                        <option value="1">Quick</option>
                     </select>
-                <label for="difficulty">Difficulty:</label>
-                <select id="difficulty">
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                </select>
-                <label for="theme-select">Select Theme:</label>
-                <select id="theme-select" class="btn">
-                    <option value="default">Default</option>
-                    <option value="dark">Dark</option>
-                    <option value="light">Light</option>
-                </select>
-                <label for="word-type">Word Type:</label>
-                <select id="word-type">
-                    <optgroup label="Site Words">
-                        <option value="normal">Site Words</option>
-                    </optgroup>
-                    <optgroup label="Alphabet Games">
-                        <option value="abc">ABC's</option>
-                        <option value="blending">Blending Words</option>
-                    </optgroup>
-                </select>
-                <div>
-                    <label for="custom-word">Add Custom Word:</label>
-                    <input type="text" id="custom-word" class="input-field">
-                    <button id="add-word-btn" class="btn">Add Word</button>
-                </div>
-                <button id="start-btn" class="btn">Start Game</button>
-                <ul id="custom-words-list" class="word-list"></ul>
+                </label>
+                <label class="setting">
+                    <span>Flash card timer</span>
+                    <select id="set-timer">
+                        <option value="0">Off</option>
+                        <option value="5">5 seconds</option>
+                        <option value="10">10 seconds</option>
+                        <option value="15">15 seconds</option>
+                    </select>
+                </label>
+                <label class="setting">
+                    <span>Colors</span>
+                    <select id="set-theme">
+                        <option value="sky">Sky</option>
+                        <option value="sunny">Sunny</option>
+                        <option value="night">Night</option>
+                    </select>
+                </label>
             </div>
-            <div id="game-card" class="card" style="display:none;">
-                <div id="word-display" class="word-display">Word</div>
-                <div class="timer-container">
-                    <div id="timer" class="timer">00:10</div>
-                    <button id="pause-btn" class="btn pause-btn">Pause</button>
-                </div>
-                <div class="buttons">
-                    <button id="correct-btn" class="btn correct-btn">Correct</button>
-                    <button id="incorrect-btn" class="btn incorrect-btn">Incorrect</button>
-                </div>
-                <div id="score" class="score">Score: 0</div>
-            </div>
-            <div id="game-over-card" class="card game-over-card" style="display:none;">
-                <h2>Game Over</h2>
-                <p id="final-score"></p>
-                <button id="restart-btn" class="btn">Restart Game</button>
-            </div>
-            <div id="success-message" class="popup success-message">
-                <p id="success-text"></p>
-            </div>
+
+            <h3>My Words</h3>
+            <p class="muted">Add spelling words, names, or anything your child is learning. They show up as their own list.</p>
+            <form class="add-word" id="add-word-form">
+                <label for="custom-word" class="visually-hidden">New word</label>
+                <input type="text" id="custom-word" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type a word">
+                <button type="submit" class="small-btn">Add</button>
+            </form>
+            <div class="word-chips editable" id="custom-words"></div>
+
+            <h3>Progress</h3>
+            <p class="muted">A word counts as <strong>learned</strong> after your child gets it right 3 times.</p>
+            <div class="progress-table" id="progress-table"></div>
+            <button type="button" class="link-btn danger" id="reset-progress">Reset all progress</button>
         </div>
-    </main>
-    <footer>
-        <p>&copy; 2024 Site Word Game</p>
-    </footer>
+    </dialog>
 
-    <audio id="correct-sound" src="sounds/correct.mp3"></audio>
-    <audio id="incorrect-sound" src="sounds/incorrect.mp3"></audio>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="confetti-layer" id="confetti" aria-hidden="true"></div>
 
-    <script src="game.js"></script>
+    <audio id="correct-sound" src="sounds/correct.mp3" preload="auto"></audio>
+    <audio id="incorrect-sound" src="sounds/incorrect.mp3" preload="auto"></audio>
+
+    <script src="js/words.js"></script>
+    <script src="js/speech.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
