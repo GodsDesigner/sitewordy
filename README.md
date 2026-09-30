@@ -16,6 +16,7 @@ Sight word and phonics practice for kids ages 3–8. Plain HTML, CSS, and JavaSc
 ## Games
 
 - **Flash Cards**: the child reads the word and a grown-up taps *Got it!* or *Practice again*. Missed words come back at the end of the round. Tap the word to hear it.
+- **Build It!**: the child taps letter tiles to build the word (phonics words use sound tiles like `sh`). Wrong letters wiggle back to the tray and correct ones stay. A grown-up setting hides the word for a spelling challenge, with a Peek button.
 - **Find It!**: the app says a word and the child taps the matching card, so they can play alone. Sound-alike words (to/two) are never shown together.
 - **Blend it** (phonics lists): letter tiles slide together to show blending.
 - **Read it to me** (Chrome, Edge and Safari): the child reads into the microphone. The button is hidden where it isn't supported.
@@ -28,9 +29,13 @@ Sight word and phonics practice for kids ages 3–8. Plain HTML, CSS, and JavaSc
 
 In phonics lists, `[brackets]` mark the part to highlight, e.g. `"[bl]ue"`.
 
+## Readers (profiles)
+
+Each child has their own buddy avatar, stars, sticker book, My Words list, progress, and settings. With more than one reader, the app opens on "Who's reading today?". Grown-ups add, rename, or remove readers in the Grown-ups Corner.
+
 ## Progress
 
-Progress is saved in the browser (`localStorage`). A word counts as learned after 3 correct answers, and words not yet learned are picked first. Each correct answer earns a star, and every 20 stars unlocks a sticker.
+Progress is saved in the browser (`localStorage`, key `sitewordy:v3`), so it stays on that device. Data from earlier versions moves into a reader named "Reader" automatically. A word counts as learned after 3 correct answers, and words not yet learned are picked first. Each correct answer earns a star, and every 20 stars unlocks a sticker.
 
 ## Running locally
 

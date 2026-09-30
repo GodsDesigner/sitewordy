@@ -1,5 +1,5 @@
 (() => {
-    const STORE_KEY = 'sitewordy:v2';
+    const STORE_KEY = 'sitewordy:v3';
     const MASTERED_AT = 3;          // correct answers before a word counts as learned
     const STARS_PER_STICKER = 20;
     const STICKERS = [
@@ -13,32 +13,66 @@
     const $ = (id) => document.getElementById(id);
 
     // ================= Saved state =================
+    // Everything is saved per reader (child profile) on this device.
     const defaults = {
-        settings: { sound: true, rate: 0.85, timer: 0, theme: 'sky', roundSize: 10 },
+        settings: { sound: true, rate: 0.85, timer: 0, theme: 'sky', roundSize: 10, buildHide: false },
         progress: {},       // { listId: { word: { c: correctCount, m: missCount } } }
         stars: 0,
         customWords: []
     };
+    const AVATARS = ['🦊', '🐼', '🦁', '🐸', '🐙', '🦄', '🐢', '🦖', '🐧', '🐝', '🐬', '🦉'];
+    const AVATAR_COLORS = ['#ff8a65', '#78909c', '#ffb300', '#66bb6a', '#ec407a', '#ab47bc',
+        '#26a69a', '#7cb342', '#5c6bc0', '#fbc02d', '#29b6f6', '#8d6e63'];
+
+    function newProfile(name, avatar, data = {}) {
+        return {
+            ...defaults, ...data,
+            settings: { ...defaults.settings, ...(data.settings || {}) },
+            id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            name, avatar
+        };
+    }
+
+    function readJSON(key) {
+        try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+    }
 
     function load() {
-        let saved = {};
-        try { saved = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { /* storage blocked */ }
-        const state = { ...defaults, ...saved, settings: { ...defaults.settings, ...(saved.settings || {}) } };
-        // Bring over custom words from the original version of the game.
-        if (!saved.customWords) {
-            try {
-                const old = JSON.parse(localStorage.getItem('customWords'));
-                if (Array.isArray(old)) state.customWords = old.filter(w => typeof w === 'string' && w.trim());
-            } catch (e) { /* nothing to migrate */ }
+        const saved = readJSON(STORE_KEY);
+        if (saved && Array.isArray(saved.profiles)) {
+            saved.profiles = saved.profiles.map(p => ({
+                ...defaults, ...p, settings: { ...defaults.settings, ...(p.settings || {}) }
+            }));
+            return saved;
         }
-        return state;
+        // Bring over progress from the previous single-child version, and
+        // custom words from the original version of the game.
+        const v2 = readJSON('sitewordy:v2');
+        const oldWords = readJSON('customWords');
+        const store = { profiles: [], activeId: null };
+        if (v2 || Array.isArray(oldWords)) {
+            const data = v2 || {};
+            if (!data.customWords && Array.isArray(oldWords)) {
+                data.customWords = oldWords.filter(w => typeof w === 'string' && w.trim());
+            }
+            const first = newProfile('Reader', AVATARS[0], data);
+            store.profiles.push(first);
+            store.activeId = first.id;
+        }
+        return store;
     }
 
     function save() {
-        try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage blocked */ }
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* storage blocked */ }
     }
 
-    const state = load();
+    const store = load();
+    // The reader who is playing right now.
+    let state = store.profiles.find(p => p.id === store.activeId) || store.profiles[0] || null;
+
+    function avatarColor(avatar) {
+        return AVATAR_COLORS[Math.max(0, AVATARS.indexOf(avatar))];
+    }
 
     // ================= Word lists =================
     function allLists() {
@@ -135,7 +169,10 @@
     }
 
     function renderHome() {
+        if (!state) return;
         $('star-total').textContent = state.stars;
+        $('reader-avatar').textContent = state.avatar;
+        $('reader-name').textContent = state.name;
         const grids = { sight: $('sight-lists'), phonics: $('phonics-lists') };
         grids.sight.textContent = '';
         grids.phonics.textContent = '';
@@ -183,13 +220,14 @@
         const size = String(state.settings.roundSize);
         for (const radio of document.querySelectorAll('input[name="round-size"]')) radio.checked = radio.value === size;
         const dialog = $('mode-dialog');
+        $('mode-build').hidden = !!list.letters;
         dialog.returnValue = '';
         dialog.showModal();
     }
 
     $('mode-dialog').addEventListener('close', () => {
         const mode = $('mode-dialog').returnValue;
-        if (mode !== 'flash' && mode !== 'find') return;
+        if (!['flash', 'find', 'build'].includes(mode)) return;
         const size = Number(document.querySelector('input[name="round-size"]:checked').value);
         state.settings.roundSize = size;
         save();
@@ -223,6 +261,7 @@
         $('round-stars').textContent = '0';
         $('flash-view').hidden = mode !== 'flash';
         $('find-view').hidden = mode !== 'find';
+        $('build-view').hidden = mode !== 'build';
         show('screen-play');
         showCurrent();
     }
@@ -239,7 +278,9 @@
     function showCurrent() {
         updateProgressBar();
         if (round.index >= round.queue.length) { finishRound(); return; }
-        if (round.mode === 'flash') showFlash(); else showFind();
+        if (round.mode === 'flash') showFlash();
+        else if (round.mode === 'build') showBuild();
+        else showFind();
     }
 
     function markRight(item) {
@@ -462,6 +503,137 @@
 
     $('find-speak').addEventListener('click', () => Speech.say(findPrompt(current())));
 
+    // ---------- Build it ----------
+    const DISTRACTORS = 'abcdefghilmnoprstuw';
+    let build = null;
+
+    // Phonics words build from sound units (sh, ee...), sight words letter by letter.
+    function buildUnits(item) {
+        return item.blendable ? item.text.match(UNITS) : Array.from(item.text);
+    }
+
+    function setBuildWordVisible(visible) {
+        $('build-word').hidden = !visible;
+        $('build-hidden').hidden = visible;
+    }
+
+    function showBuild() {
+        const item = current();
+        const units = buildUnits(item);
+        build = { item, units, slots: units.map(() => null), locked: units.map(() => false) };
+
+        const hide = state.settings.buildHide;
+        renderWord($('build-word'), item);
+        setBuildWordVisible(!hide);
+        $('build-peek').hidden = !hide;
+        $('build-feedback').textContent = '';
+
+        const slotsEl = $('build-slots');
+        slotsEl.textContent = '';
+        slotsEl.classList.remove('joined');
+        units.forEach((unit, i) => {
+            const slot = document.createElement('button');
+            slot.type = 'button';
+            slot.className = 'slot';
+            slot.setAttribute('aria-label', `Space ${i + 1}`);
+            slot.addEventListener('click', () => clearSlot(i));
+            slotsEl.append(slot);
+        });
+
+        // One extra letter on short words so the last tile isn't a giveaway.
+        const extras = [];
+        if (units.length <= 5) {
+            const options = DISTRACTORS.split('').filter(l => !item.text.toLowerCase().includes(l));
+            extras.push(options[Math.floor(Math.random() * options.length)]);
+        }
+        let order = shuffle([...units, ...extras]);
+        if (order.length > 1 && order.slice(0, units.length).join('') === units.join('')) {
+            order = [...order.slice(1), order[0]];
+        }
+        const tray = $('build-tray');
+        tray.textContent = '';
+        for (const unit of order) {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.className = 'tile build-tile';
+            tile.textContent = unit;
+            tile.dataset.unit = unit;
+            tile.addEventListener('click', () => placeTile(tile));
+            tray.append(tile);
+        }
+        setTimeout(() => Speech.say(spoken(item)), 300);
+    }
+
+    function placeTile(tile) {
+        if (!build || tile.classList.contains('used')) return;
+        const i = build.slots.indexOf(null);
+        if (i < 0) return;
+        build.slots[i] = tile;
+        tile.classList.add('used');
+        tile.disabled = true;
+        const slot = $('build-slots').children[i];
+        slot.textContent = tile.dataset.unit;
+        slot.classList.add('filled');
+        if (!build.slots.includes(null)) setTimeout(checkBuild, 250);
+    }
+
+    function clearSlot(i) {
+        if (!build || build.locked[i] || !build.slots[i]) return;
+        const tile = build.slots[i];
+        build.slots[i] = null;
+        tile.classList.remove('used');
+        tile.disabled = false;
+        const slot = $('build-slots').children[i];
+        slot.textContent = '';
+        slot.classList.remove('filled', 'wrong');
+    }
+
+    function checkBuild() {
+        if (!build || build.slots.includes(null)) return;
+        const { item } = build;
+        const slotEls = $('build-slots').children;
+        const wrong = build.units.map((unit, i) => build.slots[i].dataset.unit !== unit);
+
+        if (!wrong.includes(true)) {
+            build = null;
+            for (const el of slotEls) el.classList.add('right');
+            $('build-slots').classList.add('joined');
+            setBuildWordVisible(true);
+            $('build-peek').hidden = true;
+            markRight(item);
+            $('build-feedback').textContent = randomPraise();
+            setTimeout(() => Speech.say(spoken(item)), 300);
+            if (round.firstTryRight.has(item.key)) burstConfetti(18);
+            next(1500);
+            return;
+        }
+
+        // Keep the right letters in place; wiggle the wrong ones back to the tray.
+        markMissed(item);
+        playSound('incorrect-sound');
+        $('build-feedback').textContent = 'So close! Fix the wiggly letters.';
+        wrong.forEach((isWrong, i) => {
+            if (isWrong) {
+                slotEls[i].classList.add('wrong');
+            } else {
+                build.locked[i] = true;
+                slotEls[i].classList.add('right');
+            }
+        });
+        const attempt = build;
+        setTimeout(() => {
+            if (build !== attempt) return;
+            wrong.forEach((isWrong, i) => { if (isWrong) clearSlot(i); });
+        }, 650);
+    }
+
+    $('build-speak').addEventListener('click', () => Speech.say(spoken(current())));
+    $('build-peek').addEventListener('click', () => {
+        setBuildWordVisible(true);
+        const peeked = build;
+        setTimeout(() => { if (build && build === peeked) setBuildWordVisible(false); }, 2000);
+    });
+
     // ---------- End of round ----------
     function finishRound() {
         clearTimer();
@@ -517,6 +689,7 @@
         stopListening();
         window.speechSynthesis?.cancel();
         round = null;
+        build = null;
         renderHome();
         show('screen-home');
     }
@@ -524,6 +697,20 @@
     // Keyboard shortcuts for grown-ups at a computer: → got it, ← practice again, space to hear.
     document.addEventListener('keydown', (event) => {
         if (!round || $('screen-play').hidden || document.querySelector('dialog[open]')) return;
+        if (round.mode === 'build' && build) {
+            if (event.key === 'Backspace') {
+                event.preventDefault();
+                const filled = build.slots.map((t, i) => (t && !build.locked[i] ? i : -1)).filter(i => i >= 0);
+                if (filled.length) clearSlot(filled[filled.length - 1]);
+            } else if (event.key.length === 1) {
+                const key = event.key.toLowerCase();
+                const free = [...$('build-tray').children].filter(t => !t.classList.contains('used'));
+                const tile = free.find(t => t.dataset.unit.toLowerCase() === key)
+                    || free.find(t => t.dataset.unit.toLowerCase().startsWith(key));
+                if (tile) placeTile(tile);
+            }
+            return;
+        }
         if (round.mode !== 'flash') return;
         if (event.key === 'ArrowRight') flashGotIt();
         else if (event.key === 'ArrowLeft') flashAgain();
@@ -589,18 +776,26 @@
 
     // ================= Grown-ups corner =================
     function applySettings() {
+        if (!state) return;
         document.documentElement.dataset.theme = state.settings.theme;
         Speech.setRate(Number(state.settings.rate));
     }
 
     function openGrownups() {
+        fillGrownups();
+        $('grownups-dialog').showModal();
+    }
+
+    function fillGrownups() {
+        renderReaderList();
+        $('settings-title').textContent = `Settings for ${state.avatar} ${state.name}`;
+        $('set-build-hide').checked = state.settings.buildHide;
         $('set-sound').checked = state.settings.sound;
         $('set-rate').value = String(state.settings.rate);
         $('set-timer').value = String(state.settings.timer);
         $('set-theme').value = state.settings.theme;
         renderCustomWords();
         renderProgressTable();
-        $('grownups-dialog').showModal();
     }
 
     $('open-grownups').addEventListener('click', openGrownups);
@@ -611,6 +806,7 @@
         state.settings.rate = Number(e.target.value); save(); applySettings();
         Speech.say('Hello! Let’s read.');
     });
+    $('set-build-hide').addEventListener('change', (e) => { state.settings.buildHide = e.target.checked; save(); });
     $('set-timer').addEventListener('change', (e) => { state.settings.timer = Number(e.target.value); save(); });
     $('set-theme').addEventListener('change', (e) => { state.settings.theme = e.target.value; save(); applySettings(); });
 
@@ -688,7 +884,7 @@
     }
 
     $('reset-progress').addEventListener('click', () => {
-        if (!confirm('Reset all progress and stars? This can’t be undone. (Your custom words are kept.)')) return;
+        if (!confirm(`Reset ${state.name}’s progress and stars? This can’t be undone. (My Words are kept.)`)) return;
         state.progress = {};
         state.stars = 0;
         save();
@@ -696,8 +892,158 @@
         toast('Progress reset');
     });
 
+    // ================= Readers (child profiles) =================
+    function showProfiles() {
+        const grid = $('profile-grid');
+        grid.textContent = '';
+        for (const profile of store.profiles) {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'profile-card';
+            card.style.setProperty('--tile', avatarColor(profile.avatar));
+            card.innerHTML = '<span class="profile-avatar" aria-hidden="true"></span><span class="profile-name"></span><span class="profile-stars"></span>';
+            card.querySelector('.profile-avatar').textContent = profile.avatar;
+            card.querySelector('.profile-name').textContent = profile.name;
+            card.querySelector('.profile-stars').textContent = `⭐ ${profile.stars}`;
+            card.addEventListener('click', () => enterAs(profile.id));
+            grid.append(card);
+        }
+        const add = document.createElement('button');
+        add.type = 'button';
+        add.className = 'profile-card add';
+        add.innerHTML = '<span class="profile-avatar" aria-hidden="true">+</span><span class="profile-name">Add a reader</span>';
+        add.addEventListener('click', () => openProfileDialog());
+        grid.append(add);
+        show('screen-profiles');
+    }
+
+    function enterAs(id) {
+        state = store.profiles.find(p => p.id === id);
+        store.activeId = id;
+        save();
+        applySettings();
+        renderHome();
+        show('screen-home');
+    }
+
+    $('switch-reader').addEventListener('click', showProfiles);
+
+    let editingId = null;
+
+    function openProfileDialog(profileId = null) {
+        editingId = profileId;
+        const profile = store.profiles.find(p => p.id === profileId);
+        $('profile-dialog-title').textContent = profile
+            ? `Edit ${profile.name}`
+            : store.profiles.length ? 'Add a reader' : 'Welcome! Who’s reading?';
+        $('profile-name').value = profile ? profile.name : '';
+        const chosen = profile ? profile.avatar
+            : AVATARS.find(a => !store.profiles.some(p => p.avatar === a)) || AVATARS[0];
+        const grid = $('avatar-grid');
+        grid.textContent = '';
+        for (const avatar of AVATARS) {
+            const label = document.createElement('label');
+            label.className = 'avatar-option';
+            label.style.setProperty('--tile', avatarColor(avatar));
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = 'avatar';
+            input.value = avatar;
+            input.checked = avatar === chosen;
+            const face = document.createElement('span');
+            face.textContent = avatar;
+            label.append(input, face);
+            grid.append(label);
+        }
+        $('profile-save').textContent = profile ? 'Save' : 'Let’s read!';
+        $('profile-delete').hidden = !profile;
+        $('profile-cancel').hidden = !store.profiles.length;
+        $('profile-dialog').showModal();
+        $('profile-name').focus();
+    }
+
+    // The very first reader has to be added before playing.
+    $('profile-dialog').addEventListener('cancel', (event) => {
+        if (!store.profiles.length) event.preventDefault();
+    });
+    $('profile-cancel').addEventListener('click', () => $('profile-dialog').close());
+
+    $('profile-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const name = $('profile-name').value.trim();
+        if (!name) return;
+        const avatar = document.querySelector('input[name="avatar"]:checked')?.value || AVATARS[0];
+        let enterId = null;
+        if (editingId) {
+            const profile = store.profiles.find(p => p.id === editingId);
+            profile.name = name;
+            profile.avatar = avatar;
+        } else {
+            const profile = newProfile(name, avatar);
+            store.profiles.push(profile);
+            enterId = profile.id;
+        }
+        save();
+        $('profile-dialog').close();
+        if ($('grownups-dialog').open) fillGrownups();
+        else if (enterId) enterAs(enterId);
+        else showProfiles();
+    });
+
+    $('profile-delete').addEventListener('click', () => {
+        const profile = store.profiles.find(p => p.id === editingId);
+        if (!profile) return;
+        if (!confirm(`Remove ${profile.name}? Their stars, stickers, and progress will be deleted.`)) return;
+        store.profiles = store.profiles.filter(p => p.id !== profile.id);
+        if (store.activeId === profile.id) {
+            state = store.profiles[0] || null;
+            store.activeId = state ? state.id : null;
+        }
+        save();
+        $('profile-dialog').close();
+        if (!state) {
+            $('grownups-dialog').close();
+            showProfiles();
+            openProfileDialog();
+            return;
+        }
+        applySettings();
+        if ($('grownups-dialog').open) fillGrownups();
+        else showProfiles();
+    });
+
+    function renderReaderList() {
+        const box = $('reader-list');
+        box.textContent = '';
+        for (const profile of store.profiles) {
+            const row = document.createElement('div');
+            row.className = 'reader-row';
+            row.innerHTML = '<span class="reader-avatar" aria-hidden="true"></span><span class="reader-row-name"></span><span class="muted reader-row-stars"></span>';
+            row.querySelector('.reader-avatar').textContent = profile.avatar;
+            row.querySelector('.reader-avatar').style.background = avatarColor(profile.avatar);
+            row.querySelector('.reader-row-name').textContent = profile.name + (profile.id === state.id ? ' (playing now)' : '');
+            row.querySelector('.reader-row-stars').textContent = `⭐ ${profile.stars}`;
+            const edit = document.createElement('button');
+            edit.type = 'button';
+            edit.className = 'small-btn ghost';
+            edit.textContent = 'Edit';
+            edit.setAttribute('aria-label', `Edit ${profile.name}`);
+            edit.addEventListener('click', () => openProfileDialog(profile.id));
+            row.append(edit);
+            box.append(row);
+        }
+    }
+
+    $('add-reader-btn').addEventListener('click', () => openProfileDialog());
+
     // ================= Start =================
-    applySettings();
-    renderHome();
-    show('screen-home');
+    if (!state) {
+        showProfiles();
+        openProfileDialog();
+    } else if (store.profiles.length > 1) {
+        applySettings();
+        showProfiles();
+    } else {
+        enterAs(state.id);
+    }
 })();

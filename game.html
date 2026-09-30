@@ -13,6 +13,19 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="app">
+    <!-- ================= WHO'S READING ================= -->
+    <section id="screen-profiles" class="screen" hidden aria-labelledby="profiles-title">
+        <header class="topbar">
+            <a href="index.html" class="brand" aria-label="Sitewordy home">
+                <span class="brand-mark" aria-hidden="true">S</span>Sitewordy
+            </a>
+        </header>
+        <main class="home-main">
+            <h1 id="profiles-title" class="home-title">Who’s reading today?</h1>
+            <div class="profile-grid" id="profile-grid"></div>
+        </main>
+    </section>
+
     <!-- ================= HOME: pick a word list ================= -->
     <section id="screen-home" class="screen" aria-labelledby="home-title">
         <header class="topbar">
@@ -20,6 +33,10 @@
                 <span class="brand-mark" aria-hidden="true">S</span>Sitewordy
             </a>
             <div class="topbar-actions">
+                <button type="button" class="chip-btn reader-chip" id="switch-reader" aria-label="Switch reader">
+                    <span class="reader-avatar" id="reader-avatar" aria-hidden="true"></span>
+                    <span id="reader-name"></span>
+                </button>
                 <button type="button" class="chip-btn" id="open-stickers" aria-label="Open sticker book">
                     <span aria-hidden="true">⭐</span> <span id="star-total">0</span>
                 </button>
@@ -78,6 +95,19 @@
                 <div class="choices" id="find-choices"></div>
                 <p class="feedback" id="find-feedback" aria-live="polite"></p>
             </div>
+
+            <!-- Build it -->
+            <div id="build-view" class="mode-view" hidden>
+                <div class="build-model">
+                    <button type="button" class="speaker-btn" id="build-speak" aria-label="Hear the word">🔊</button>
+                    <span class="word-text build-word" id="build-word"></span>
+                    <span class="build-hidden" id="build-hidden" hidden>Listen and build!</span>
+                    <button type="button" class="helper-btn" id="build-peek" hidden><span aria-hidden="true">👀</span> Peek</button>
+                </div>
+                <div class="slots" id="build-slots" aria-label="Your word"></div>
+                <div class="tray" id="build-tray" aria-label="Letters"></div>
+                <p class="feedback" id="build-feedback" aria-live="polite"></p>
+            </div>
         </main>
     </section>
 
@@ -117,6 +147,10 @@
                     <span class="mode-emoji" aria-hidden="true">👂</span>
                     <span><strong>Find It!</strong><small>Listen to the word, then tap the right card.</small></span>
                 </button>
+                <button type="submit" class="mode-option" value="build" id="mode-build">
+                    <span class="mode-emoji" aria-hidden="true">🔨</span>
+                    <span><strong>Build It!</strong><small>Tap the letters to build the word.</small></span>
+                </button>
             </div>
             <fieldset class="segmented">
                 <legend>How many words?</legend>
@@ -124,6 +158,22 @@
                 <label><input type="radio" name="round-size" value="20"><span>20</span></label>
                 <label><input type="radio" name="round-size" value="0"><span>All</span></label>
             </fieldset>
+        </form>
+    </dialog>
+
+    <!-- ================= DIALOG: add / edit a reader ================= -->
+    <dialog id="profile-dialog" class="sheet" aria-labelledby="profile-dialog-title">
+        <form class="sheet-inner" id="profile-form">
+            <button type="button" class="icon-btn sheet-close" id="profile-cancel" aria-label="Close">✕</button>
+            <h2 id="profile-dialog-title">Add a reader</h2>
+            <label for="profile-name" class="field-label">Name</label>
+            <input type="text" id="profile-name" class="text-input" maxlength="16" required autocomplete="off" placeholder="Your child’s name">
+            <fieldset class="avatar-picker">
+                <legend class="field-label">Pick a buddy</legend>
+                <div class="avatar-grid" id="avatar-grid"></div>
+            </fieldset>
+            <button type="submit" class="big-btn gotit wide-btn" id="profile-save">Let’s read!</button>
+            <button type="button" class="link-btn danger" id="profile-delete" hidden>Remove this reader</button>
         </form>
     </dialog>
 
@@ -142,6 +192,12 @@
         <div class="sheet-inner">
             <form method="dialog"><button type="submit" class="icon-btn sheet-close" aria-label="Close">✕</button></form>
             <h2 id="grownups-title">Grown-ups Corner</h2>
+
+            <h3>Readers</h3>
+            <div class="reader-list" id="reader-list"></div>
+            <button type="button" class="small-btn" id="add-reader-btn">+ Add a reader</button>
+
+            <h3 id="settings-title">Settings</h3>
 
             <div class="settings">
                 <label class="setting">
@@ -164,6 +220,10 @@
                         <option value="10">10 seconds</option>
                         <option value="15">15 seconds</option>
                     </select>
+                </label>
+                <label class="setting">
+                    <span>Build It: hide the word<small>A spelling challenge. Kids can still peek.</small></span>
+                    <input type="checkbox" id="set-build-hide" class="switch">
                 </label>
                 <label class="setting">
                     <span>Colors</span>
