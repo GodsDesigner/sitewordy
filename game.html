@@ -49,11 +49,10 @@
         <main class="home-main">
             <h1 id="home-title" class="home-title">What do you want to practice?</h1>
 
-            <h2 class="group-title"><span aria-hidden="true">👀</span> Sight Words</h2>
-            <div class="list-grid" id="sight-lists"></div>
+            <div id="learning-path"></div>
 
-            <h2 class="group-title"><span aria-hidden="true">🧩</span> Phonics &amp; Blends</h2>
-            <div class="list-grid" id="phonics-lists"></div>
+            <h2 class="group-title"><span aria-hidden="true">💖</span> My Words</h2>
+            <div class="list-grid" id="my-lists"></div>
         </main>
     </section>
 
@@ -118,6 +117,7 @@
                 <div class="done-stars" id="done-stars" aria-hidden="true"></div>
                 <h1 id="done-title">Great job!</h1>
                 <p id="done-summary" class="done-summary"></p>
+                <div id="level-up" class="level-up" hidden></div>
                 <div id="new-sticker" class="new-sticker" hidden></div>
                 <div id="practice-wrap" hidden>
                     <h2 class="small-title">Words to keep practicing</h2>
@@ -154,6 +154,7 @@
             </div>
             <fieldset class="segmented">
                 <legend>How many words?</legend>
+                <label><input type="radio" name="round-size" value="5"><span>5</span></label>
                 <label><input type="radio" name="round-size" value="10" checked><span>10</span></label>
                 <label><input type="radio" name="round-size" value="20"><span>20</span></label>
                 <label><input type="radio" name="round-size" value="0"><span>All</span></label>
@@ -168,6 +169,16 @@
             <h2 id="profile-dialog-title">Add a reader</h2>
             <label for="profile-name" class="field-label">Name</label>
             <input type="text" id="profile-name" class="text-input" maxlength="16" required autocomplete="off" placeholder="Your child’s name">
+            <label for="profile-age" class="field-label">Age</label>
+            <select id="profile-age" class="text-input">
+                <option value="3">3 years old</option>
+                <option value="4">4 years old</option>
+                <option value="5">5 years old</option>
+                <option value="6">6 years old</option>
+                <option value="7">7 years old</option>
+                <option value="8">8 or older</option>
+            </select>
+            <p class="muted field-note">Sets where they start. They’ll unlock harder levels as they learn.</p>
             <fieldset class="avatar-picker">
                 <legend class="field-label">Pick a buddy</legend>
                 <div class="avatar-grid" id="avatar-grid"></div>
@@ -222,8 +233,16 @@
                     </select>
                 </label>
                 <label class="setting">
-                    <span>Build It: hide the word<small>A spelling challenge. Kids can still peek.</small></span>
-                    <input type="checkbox" id="set-build-hide" class="switch">
+                    <span>Build It spelling challenge<small>Hides the word so kids spell from listening. They can still peek.</small></span>
+                    <select id="set-build-hide">
+                        <option value="auto">From 2nd grade</option>
+                        <option value="always">Always</option>
+                        <option value="never">Never</option>
+                    </select>
+                </label>
+                <label class="setting">
+                    <span>Unlock all levels<small>Let your child play any level, not just the ones they’ve reached.</small></span>
+                    <input type="checkbox" id="set-unlock-all" class="switch">
                 </label>
                 <label class="setting">
                     <span>Colors</span>

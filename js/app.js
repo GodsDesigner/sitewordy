@@ -8,14 +8,24 @@
         '🌈', '🚀', '🎈', '🍦', '🍩', '⚽', '🎸', '👑', '💎', '🏆'
     ];
     const PRAISE = ['Great job!', 'You got it!', 'Awesome!', 'Super reading!', 'Way to go!', 'Fantastic!', 'Nice work!'];
-    const CHOICES_PER_QUESTION = 3;
+    const STAGES = window.SITEWORDY_STAGES;
+    const UNLOCK_AT = 0.8;          // share of a level's words learned to unlock the next level
+    // How the games play at each level: more choices, more extra letters,
+    // look-alike words, and spelling from listening as kids grow.
+    const DIFFICULTY = {
+        1: { choices: 2, extras: 0, lookAlikes: false, spell: false, size: 5 },
+        2: { choices: 3, extras: 1, lookAlikes: false, spell: false, size: 10 },
+        3: { choices: 4, extras: 2, lookAlikes: true, spell: false, size: 10 },
+        4: { choices: 4, extras: 2, lookAlikes: true, spell: true, size: 10 },
+        5: { choices: 4, extras: 3, lookAlikes: true, spell: true, size: 10 }
+    };
 
     const $ = (id) => document.getElementById(id);
 
     // ================= Saved state =================
     // Everything is saved per reader (child profile) on this device.
     const defaults = {
-        settings: { sound: true, rate: 0.85, timer: 0, theme: 'sky', roundSize: 10, buildHide: false },
+        settings: { sound: true, rate: 0.85, timer: 0, theme: 'sky', roundSize: null, buildHide: 'auto', unlockAll: false },
         progress: {},       // { listId: { word: { c: correctCount, m: missCount } } }
         stars: 0,
         customWords: []
@@ -24,10 +34,18 @@
     const AVATAR_COLORS = ['#ff8a65', '#78909c', '#ffb300', '#66bb6a', '#ec407a', '#ab47bc',
         '#26a69a', '#7cb342', '#5c6bc0', '#fbc02d', '#29b6f6', '#8d6e63'];
 
+    // Older saves stored the spelling challenge as on/off.
+    function cleanSettings(settings = {}) {
+        const merged = { ...defaults.settings, ...settings };
+        if (merged.buildHide === true) merged.buildHide = 'always';
+        if (merged.buildHide === false) merged.buildHide = 'auto';
+        return merged;
+    }
+
     function newProfile(name, avatar, data = {}) {
         return {
             ...defaults, ...data,
-            settings: { ...defaults.settings, ...(data.settings || {}) },
+            settings: cleanSettings(data.settings),
             id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
             name, avatar
         };
@@ -41,7 +59,7 @@
         const saved = readJSON(STORE_KEY);
         if (saved && Array.isArray(saved.profiles)) {
             saved.profiles = saved.profiles.map(p => ({
-                ...defaults, ...p, settings: { ...defaults.settings, ...(p.settings || {}) }
+                ...defaults, ...p, settings: cleanSettings(p.settings)
             }));
             return saved;
         }
@@ -134,16 +152,16 @@
         return item.text;
     }
 
-    function wordStats(listId, key) {
-        return state.progress[listId]?.[key] || { c: 0, m: 0 };
+    function wordStats(listId, key, reader = state) {
+        return reader.progress[listId]?.[key] || { c: 0, m: 0 };
     }
 
-    function isLearned(listId, key) {
-        return wordStats(listId, key).c >= MASTERED_AT;
+    function isLearned(listId, key, reader = state) {
+        return wordStats(listId, key, reader).c >= MASTERED_AT;
     }
 
-    function learnedCount(list) {
-        return list.items.filter(k => isLearned(list.id, k)).length;
+    function learnedCount(list, reader = state) {
+        return list.items.filter(k => isLearned(list.id, k, reader)).length;
     }
 
     function record(listId, key, correct) {
@@ -162,10 +180,102 @@
         return a;
     }
 
+    // ================= Levels =================
+    function stageForAge(age) {
+        if (!age || age <= 4) return 1;
+        return Math.min(STAGES.length, age - 3);
+    }
+
+    function stageLists(stage) {
+        return window.SITEWORDY_LISTS.filter(l => l.stage === stage);
+    }
+
+    function stageProgress(stage, reader = state) {
+        let total = 0;
+        let learned = 0;
+        for (const list of stageLists(stage)) {
+            total += list.items.length;
+            learned += learnedCount(list, reader);
+        }
+        return total ? learned / total : 0;
+    }
+
+    // The highest level this child has reached: their age sets the start,
+    // and each level they mostly learn opens the next one.
+    function currentStage(reader = state) {
+        let stage = stageForAge(reader.age);
+        while (stage < STAGES.length && stageProgress(stage, reader) >= UNLOCK_AT) stage++;
+        return stage;
+    }
+
+    function isUnlocked(list) {
+        return state.settings.unlockAll || !list.stage || list.stage <= currentStage();
+    }
+
+    // My Words plays at the child's current level.
+    function difficultyFor(list) {
+        return DIFFICULTY[list.stage || currentStage()];
+    }
+
+    function stageInfo(stage) {
+        return STAGES.find(s => s.stage === stage);
+    }
+
     // ================= Screens =================
     function show(screenId) {
         for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== screenId;
         window.scrollTo(0, 0);
+    }
+
+    function listTile(list, { locked = false, nextUp = false } = {}) {
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'list-tile' + (locked ? ' locked' : '') + (nextUp ? ' next-up' : '');
+        tile.style.setProperty('--tile', list.color);
+
+        const total = list.items.length;
+        const learned = learnedCount(list);
+        const pct = total ? Math.round((learned / total) * 100) : 0;
+        let countLabel = `${learned} of ${total} learned`;
+        if (list.id === 'custom' && !total) countLabel = 'Add words in Grown-ups';
+        else if (locked) countLabel = '🔒 Locked';
+        else if (pct === 100) countLabel = '🏆 All learned!';
+
+        tile.innerHTML = `
+            <span class="tile-emoji" aria-hidden="true"></span>
+            <span class="tile-title"></span>
+            <span class="tile-sub"></span>
+            <span class="tile-meter" aria-hidden="true"><span style="width:${pct}%"></span></span>
+            <span class="tile-count"></span>`;
+        tile.querySelector('.tile-emoji').textContent = locked ? '🔒' : list.emoji;
+        tile.querySelector('.tile-title').textContent = list.title;
+        tile.querySelector('.tile-sub').textContent = list.subtitle;
+        tile.querySelector('.tile-count').textContent = countLabel;
+        if (nextUp) {
+            const badge = document.createElement('span');
+            badge.className = 'next-badge';
+            badge.textContent = 'Up next';
+            tile.append(badge);
+        }
+        tile.addEventListener('click', () => {
+            if (locked) {
+                const need = stageInfo(list.stage - 1);
+                toast(`🔒 Keep practicing ${need.title} to unlock this!`);
+                Speech.say('Keep practicing to unlock this one!');
+                return;
+            }
+            chooseList(list.id);
+        });
+        return tile;
+    }
+
+    // The list a child should play next: the least-learned one at their level.
+    function nextUpList() {
+        const stage = currentStage();
+        const candidates = stageLists(stage).filter(l => learnedCount(l) < l.items.length);
+        if (!candidates.length) return null;
+        return candidates.reduce((best, l) =>
+            learnedCount(l) / l.items.length < learnedCount(best) / best.items.length ? l : best);
     }
 
     function renderHome() {
@@ -173,36 +283,60 @@
         $('star-total').textContent = state.stars;
         $('reader-avatar').textContent = state.avatar;
         $('reader-name').textContent = state.name;
-        const grids = { sight: $('sight-lists'), phonics: $('phonics-lists') };
-        grids.sight.textContent = '';
-        grids.phonics.textContent = '';
 
-        for (const list of allLists()) {
-            const tile = document.createElement('button');
-            tile.type = 'button';
-            tile.className = 'list-tile';
-            tile.style.setProperty('--tile', list.color);
+        const current = currentStage();
+        const next = nextUpList();
+        const path = $('learning-path');
+        path.textContent = '';
 
-            const total = list.items.length;
-            const learned = learnedCount(list);
-            const pct = total ? Math.round((learned / total) * 100) : 0;
-            const countLabel = list.id === 'custom' && !total
-                ? 'Add words in Grown-ups'
-                : `${learned} of ${total} learned`;
-
-            tile.innerHTML = `
-                <span class="tile-emoji" aria-hidden="true"></span>
-                <span class="tile-title"></span>
-                <span class="tile-sub"></span>
-                <span class="tile-meter" aria-hidden="true"><span style="width:${pct}%"></span></span>
-                <span class="tile-count"></span>`;
-            tile.querySelector('.tile-emoji').textContent = list.emoji;
-            tile.querySelector('.tile-title').textContent = list.title;
-            tile.querySelector('.tile-sub').textContent = list.subtitle;
-            tile.querySelector('.tile-count').textContent = pct === 100 ? '🏆 All learned!' : countLabel;
-            tile.addEventListener('click', () => chooseList(list.id));
-            grids[list.group].append(tile);
+        for (const info of STAGES) {
+            const open = state.settings.unlockAll || info.stage <= current;
+            const isNextLocked = !open && info.stage === current + 1;
+            const section = document.createElement('section');
+            section.className = 'stage' + (open ? '' : ' locked') + (info.stage === current ? ' current' : '');
+            const pct = Math.round(stageProgress(info.stage) * 100);
+            section.innerHTML = `
+                <div class="stage-head">
+                    <span class="stage-badge" aria-hidden="true"></span>
+                    <div class="stage-text">
+                        <h2 class="stage-title"></h2>
+                        <p class="stage-sub"></p>
+                    </div>
+                </div>`;
+            section.querySelector('.stage-badge').textContent = open ? info.emoji : '🔒';
+            section.querySelector('.stage-title').textContent = `Level ${info.stage} · ${info.title}`;
+            section.querySelector('.stage-sub').textContent = open
+                ? `${info.ages} · ${pct}% learned`
+                : `${info.ages} · Locked`;
+            if (info.stage === current) {
+                const here = document.createElement('span');
+                here.className = 'stage-here';
+                here.textContent = `${state.avatar} You are here`;
+                section.querySelector('.stage-head').append(here);
+            }
+            if (isNextLocked) {
+                const prev = stageInfo(current);
+                const need = Math.round(UNLOCK_AT * 100);
+                const note = document.createElement('p');
+                note.className = 'stage-lock';
+                note.textContent = `Learn ${need}% of ${prev.title} to unlock (${Math.round(stageProgress(current) * 100)}% so far)`;
+                section.append(note);
+            }
+            // Show tiles for open levels and the very next one; later levels stay a surprise.
+            if (open || isNextLocked) {
+                const grid = document.createElement('div');
+                grid.className = 'list-grid';
+                for (const list of stageLists(info.stage)) {
+                    grid.append(listTile(list, { locked: !open, nextUp: next === list }));
+                }
+                section.append(grid);
+            }
+            path.append(section);
         }
+
+        const mine = $('my-lists');
+        mine.textContent = '';
+        mine.append(listTile(findList('custom')));
     }
 
     // ================= Choosing a game =================
@@ -217,7 +351,7 @@
         }
         pending = listId;
         $('mode-eyebrow').textContent = `${list.emoji} ${list.title}`;
-        const size = String(state.settings.roundSize);
+        const size = String(state.settings.roundSize ?? difficultyFor(list).size);
         for (const radio of document.querySelectorAll('input[name="round-size"]')) radio.checked = radio.value === size;
         const dialog = $('mode-dialog');
         $('mode-build').hidden = !!list.letters;
@@ -238,10 +372,17 @@
     let round = null;
 
     function pickWords(list, size) {
-        // Words not yet learned come first so practice time goes where it's needed.
-        const learning = shuffle(list.items.filter(k => !isLearned(list.id, k)));
+        // Words the child is working on come first, then brand-new words from
+        // shortest to longest, then a little review of words already learned.
+        const seen = k => { const s = wordStats(list.id, k); return s.c + s.m > 0; };
+        const learning = shuffle(list.items.filter(k => seen(k) && !isLearned(list.id, k)));
+        const fresh = list.items
+            .filter(k => !seen(k))
+            .map((k, i) => ({ k, i, len: parseItem(k, list).text.length }))
+            .sort((a, b) => a.len - b.len || a.i - b.i)
+            .map(x => x.k);
         const learned = shuffle(list.items.filter(k => isLearned(list.id, k)));
-        const picked = [...learning, ...learned].slice(0, size || list.items.length);
+        const picked = [...learning, ...fresh, ...learned].slice(0, size || list.items.length);
         return shuffle(picked);
     }
 
@@ -250,6 +391,8 @@
         const keys = onlyKeys ? shuffle(onlyKeys) : pickWords(list, size);
         round = {
             list, mode, size,
+            level: difficultyFor(list),
+            stageBefore: currentStage(),
             queue: keys.map(k => parseItem(k, list)),
             index: 0,
             starsBefore: state.stars,
@@ -442,10 +585,23 @@
     }
 
     // ---------- Find it ----------
+    // How alike two words look: same start, similar length, shared letters.
+    function lookAlikeScore(a, b) {
+        a = a.toLowerCase();
+        b = b.toLowerCase();
+        let score = 0;
+        if (a[0] === b[0]) score += 3;
+        if (a.slice(-1) === b.slice(-1)) score += 1;
+        if (Math.abs(a.length - b.length) <= 1) score += 2;
+        score += [...new Set(a)].filter(ch => b.includes(ch)).length * 0.5;
+        return score;
+    }
+
     function pickChoices(item) {
         const list = round.list;
+        const { choices, lookAlikes } = round.level;
         let pool = list.items.map(k => parseItem(k, list));
-        if (pool.length < CHOICES_PER_QUESTION + 2) {
+        if (pool.length < choices + 2) {
             const starter = findList('dolch-prek');
             pool = pool.concat(starter.items.map(k => parseItem(k, starter)));
         }
@@ -454,7 +610,9 @@
             !Speech.soundsAlike(other.text, item.text) &&
             arr.findIndex(o => o.text.toLowerCase() === other.text.toLowerCase()) === i
         );
-        return shuffle([item, ...others.slice(0, CHOICES_PER_QUESTION - 1)]);
+        // Higher levels mix in words that look alike, like "was" and "saw".
+        if (lookAlikes) others.sort((a, b) => lookAlikeScore(b.text, item.text) - lookAlikeScore(a.text, item.text));
+        return shuffle([item, ...others.slice(0, choices - 1)]);
     }
 
     function findPrompt(item) {
@@ -465,6 +623,7 @@
         const item = current();
         const box = $('find-choices');
         box.textContent = '';
+        box.classList.toggle('four', round.level.choices === 4);
         $('find-feedback').textContent = '';
         $('find-label').textContent = item.letter ? 'Find the letter you hear!' : 'Find the word you hear!';
 
@@ -522,7 +681,8 @@
         const units = buildUnits(item);
         build = { item, units, slots: units.map(() => null), locked: units.map(() => false) };
 
-        const hide = state.settings.buildHide;
+        const spelling = state.settings.buildHide;
+        const hide = spelling === 'always' || (spelling === 'auto' && round.level.spell);
         renderWord($('build-word'), item);
         setBuildWordVisible(!hide);
         $('build-peek').hidden = !hide;
@@ -540,12 +700,10 @@
             slotsEl.append(slot);
         });
 
-        // One extra letter on short words so the last tile isn't a giveaway.
-        const extras = [];
-        if (units.length <= 5) {
-            const options = DISTRACTORS.split('').filter(l => !item.text.toLowerCase().includes(l));
-            extras.push(options[Math.floor(Math.random() * options.length)]);
-        }
+        // Extra letters make it trickier as levels go up (but never more than 9 tiles).
+        const extraCount = Math.min(round.level.extras, Math.max(0, 9 - units.length));
+        const extras = shuffle(DISTRACTORS.split('').filter(l => !item.text.toLowerCase().includes(l)))
+            .slice(0, extraCount);
         let order = shuffle([...units, ...extras]);
         if (order.length > 1 && order.slice(0, units.length).join('') === units.join('')) {
             order = [...order.slice(1), order[0]];
@@ -647,6 +805,19 @@
         $('done-title').textContent = earned === 3 ? 'Amazing reading!' : earned === 2 ? 'Great job!' : 'Good practice!';
         const noun = round.list.letters ? 'letters' : 'words';
         $('done-summary').textContent = `You got ${right} of ${unique.size} ${noun} on the first try and earned ${round.stars} ⭐`;
+
+        // Level up?
+        const stageNow = currentStage();
+        const levelUp = $('level-up');
+        levelUp.hidden = stageNow <= round.stageBefore;
+        if (!levelUp.hidden) {
+            const info = stageInfo(stageNow);
+            levelUp.innerHTML = '<span class="level-up-emoji" aria-hidden="true"></span><span><strong>Level up!</strong><span class="level-up-text"></span></span>';
+            levelUp.querySelector('.level-up-emoji').textContent = info.emoji;
+            levelUp.querySelector('.level-up-text').textContent = `You unlocked Level ${info.stage}: ${info.title}!`;
+            $('done-title').textContent = 'You leveled up!';
+            setTimeout(() => Speech.say(`Level up! You unlocked ${info.title}!`), 700);
+        }
 
         // New sticker?
         const before = Math.floor(round.starsBefore / STARS_PER_STICKER);
@@ -789,7 +960,8 @@
     function fillGrownups() {
         renderReaderList();
         $('settings-title').textContent = `Settings for ${state.avatar} ${state.name}`;
-        $('set-build-hide').checked = state.settings.buildHide;
+        $('set-build-hide').value = state.settings.buildHide;
+        $('set-unlock-all').checked = state.settings.unlockAll;
         $('set-sound').checked = state.settings.sound;
         $('set-rate').value = String(state.settings.rate);
         $('set-timer').value = String(state.settings.timer);
@@ -806,7 +978,8 @@
         state.settings.rate = Number(e.target.value); save(); applySettings();
         Speech.say('Hello! Let’s read.');
     });
-    $('set-build-hide').addEventListener('change', (e) => { state.settings.buildHide = e.target.checked; save(); });
+    $('set-build-hide').addEventListener('change', (e) => { state.settings.buildHide = e.target.value; save(); });
+    $('set-unlock-all').addEventListener('change', (e) => { state.settings.unlockAll = e.target.checked; save(); });
     $('set-timer').addEventListener('change', (e) => { state.settings.timer = Number(e.target.value); save(); });
     $('set-theme').addEventListener('change', (e) => { state.settings.theme = e.target.value; save(); applySettings(); });
 
@@ -904,7 +1077,7 @@
             card.innerHTML = '<span class="profile-avatar" aria-hidden="true"></span><span class="profile-name"></span><span class="profile-stars"></span>';
             card.querySelector('.profile-avatar').textContent = profile.avatar;
             card.querySelector('.profile-name').textContent = profile.name;
-            card.querySelector('.profile-stars').textContent = `⭐ ${profile.stars}`;
+            card.querySelector('.profile-stars').textContent = `⭐ ${profile.stars} · Level ${currentStage(profile)}`;
             card.addEventListener('click', () => enterAs(profile.id));
             grid.append(card);
         }
@@ -924,6 +1097,9 @@
         applySettings();
         renderHome();
         show('screen-home');
+        // Older kids land on their own level instead of scrolling past the early ones.
+        const here = document.querySelector('.stage.current');
+        if (here && currentStage() > 1) here.scrollIntoView({ block: 'start' });
     }
 
     $('switch-reader').addEventListener('click', showProfiles);
@@ -937,6 +1113,7 @@
             ? `Edit ${profile.name}`
             : store.profiles.length ? 'Add a reader' : 'Welcome! Who’s reading?';
         $('profile-name').value = profile ? profile.name : '';
+        $('profile-age').value = String(profile?.age || 4);
         const chosen = profile ? profile.avatar
             : AVATARS.find(a => !store.profiles.some(p => p.avatar === a)) || AVATARS[0];
         const grid = $('avatar-grid');
@@ -973,13 +1150,15 @@
         const name = $('profile-name').value.trim();
         if (!name) return;
         const avatar = document.querySelector('input[name="avatar"]:checked')?.value || AVATARS[0];
+        const age = Number($('profile-age').value);
         let enterId = null;
         if (editingId) {
             const profile = store.profiles.find(p => p.id === editingId);
             profile.name = name;
             profile.avatar = avatar;
+            profile.age = age;
         } else {
-            const profile = newProfile(name, avatar);
+            const profile = newProfile(name, avatar, { age });
             store.profiles.push(profile);
             enterId = profile.id;
         }
@@ -1022,7 +1201,7 @@
             row.querySelector('.reader-avatar').textContent = profile.avatar;
             row.querySelector('.reader-avatar').style.background = avatarColor(profile.avatar);
             row.querySelector('.reader-row-name').textContent = profile.name + (profile.id === state.id ? ' (playing now)' : '');
-            row.querySelector('.reader-row-stars').textContent = `⭐ ${profile.stars}`;
+            row.querySelector('.reader-row-stars').textContent = `Level ${currentStage(profile)} · ⭐ ${profile.stars}`;
             const edit = document.createElement('button');
             edit.type = 'button';
             edit.className = 'small-btn ghost';

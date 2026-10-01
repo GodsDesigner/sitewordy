@@ -8,10 +8,23 @@
  * e.g. "[bl]ue" highlights the "bl" blend. The brackets are only for
  * display; the child sees "blue" with "bl" colored.
  */
+/*
+ * The learning path. Each stage unlocks when a child has learned most of the
+ * stage before it, and the games get a little harder at every stage.
+ * A child's age sets where they start.
+ */
+window.SITEWORDY_STAGES = [
+    { stage: 1, title: 'Little Readers', ages: 'Ages 3–4', emoji: '🐣' },
+    { stage: 2, title: 'Kindergarten', ages: 'Age 5', emoji: '🎒' },
+    { stage: 3, title: '1st Grade', ages: 'Age 6', emoji: '✏️' },
+    { stage: 4, title: '2nd Grade', ages: 'Age 7', emoji: '📚' },
+    { stage: 5, title: '3rd Grade', ages: 'Ages 8+', emoji: '🚀' }
+];
+
 window.SITEWORDY_LISTS = [
     // ---------- Sight words (Dolch, by grade) ----------
     {
-        id: 'dolch-prek', group: 'sight', emoji: '🐣', color: '#ff8a65',
+        id: 'dolch-prek', stage: 1, group: 'sight', emoji: '🐣', color: '#ff8a65',
         title: 'Pre-K', subtitle: 'First sight words',
         items: [
             'a', 'and', 'away', 'big', 'blue', 'can', 'come', 'down', 'find', 'for',
@@ -21,7 +34,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'dolch-k', group: 'sight', emoji: '🎒', color: '#ffb300',
+        id: 'dolch-k', stage: 2, group: 'sight', emoji: '🎒', color: '#ffb300',
         title: 'Kindergarten', subtitle: 'Primer sight words',
         items: [
             'all', 'am', 'are', 'at', 'ate', 'be', 'black', 'brown', 'but', 'came',
@@ -33,7 +46,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'dolch-1', group: 'sight', emoji: '✏️', color: '#66bb6a',
+        id: 'dolch-1', stage: 3, group: 'sight', emoji: '✏️', color: '#66bb6a',
         title: '1st Grade', subtitle: 'Growing readers',
         items: [
             'after', 'again', 'an', 'any', 'as', 'ask', 'by', 'could', 'every', 'fly',
@@ -44,7 +57,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'dolch-2', group: 'sight', emoji: '📚', color: '#42a5f5',
+        id: 'dolch-2', stage: 4, group: 'sight', emoji: '📚', color: '#42a5f5',
         title: '2nd Grade', subtitle: 'Confident readers',
         items: [
             'always', 'around', 'because', 'been', 'before', 'best', 'both', 'buy', 'call', 'cold',
@@ -55,7 +68,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'dolch-3', group: 'sight', emoji: '🚀', color: '#ab47bc',
+        id: 'dolch-3', stage: 5, group: 'sight', emoji: '🚀', color: '#ab47bc',
         title: '3rd Grade', subtitle: 'Reading stars',
         items: [
             'about', 'better', 'bring', 'carry', 'clean', 'cut', 'done', 'draw', 'drink', 'eight',
@@ -66,7 +79,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'fry-1', group: 'sight', emoji: '💯', color: '#26a69a',
+        id: 'fry-1', stage: 2, group: 'sight', emoji: '💯', color: '#26a69a',
         title: 'Fry 1–100', subtitle: 'Most common words',
         items: [
             'the', 'of', 'and', 'a', 'to', 'in', 'is', 'you', 'that', 'it',
@@ -82,7 +95,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'fry-2', group: 'sight', emoji: '🌟', color: '#5c6bc0',
+        id: 'fry-2', stage: 5, group: 'sight', emoji: '🌟', color: '#5c6bc0',
         title: 'Fry 101–200', subtitle: 'Next 100 words',
         items: [
             'over', 'new', 'sound', 'take', 'only', 'little', 'work', 'know', 'place', 'years',
@@ -100,12 +113,12 @@ window.SITEWORDY_LISTS = [
 
     // ---------- Phonics ----------
     {
-        id: 'abc', group: 'phonics', emoji: '🔤', color: '#ef5350', letters: true,
+        id: 'abc', stage: 1, group: 'phonics', emoji: '🔤', color: '#ef5350', letters: true,
         title: 'ABCs', subtitle: 'Letter names',
         items: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
     },
     {
-        id: 'cvc', group: 'phonics', emoji: '🐱', color: '#ffa726', blendable: true,
+        id: 'cvc', stage: 1, group: 'phonics', emoji: '🐱', color: '#ffa726', blendable: true,
         title: 'Short Vowels', subtitle: 'CVC words like c-a-t',
         items: [
             'c[a]t', 'b[a]t', 'h[a]t', 'm[a]p', 'c[a]p', 'f[a]n', 'm[a]n', 'p[a]n', 'v[a]n', 'b[a]g',
@@ -116,7 +129,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'l-blends', group: 'phonics', emoji: '🦋', color: '#29b6f6', blendable: true,
+        id: 'l-blends', stage: 3, group: 'phonics', emoji: '🦋', color: '#29b6f6', blendable: true,
         title: 'L-Blends', subtitle: 'bl, cl, fl, gl, pl, sl',
         items: [
             '[bl]ue', '[bl]ock', '[bl]ack', '[cl]ap', '[cl]ock', '[cl]ean', '[fl]ag', '[fl]ower',
@@ -125,7 +138,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'r-blends', group: 'phonics', emoji: '🐸', color: '#66bb6a', blendable: true,
+        id: 'r-blends', stage: 3, group: 'phonics', emoji: '🐸', color: '#66bb6a', blendable: true,
         title: 'R-Blends', subtitle: 'br, cr, dr, fr, gr, pr, tr',
         items: [
             '[br]own', '[br]ush', '[br]ead', '[cr]ab', '[cr]ash', '[dr]um', '[dr]ess', '[fr]og',
@@ -134,7 +147,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 's-blends', group: 'phonics', emoji: '🐌', color: '#8d6e63', blendable: true,
+        id: 's-blends', stage: 3, group: 'phonics', emoji: '🐌', color: '#8d6e63', blendable: true,
         title: 'S & W Blends', subtitle: 'sc, sk, sm, sn, sp, st, sw, tw',
         items: [
             '[sc]arf', '[sk]ip', '[sk]ate', '[sk]y', '[sm]ile', '[sm]ell', '[sn]ail', '[sn]ow',
@@ -143,7 +156,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: '3-blends', group: 'phonics', emoji: '🦐', color: '#ec407a', blendable: true,
+        id: '3-blends', stage: 4, group: 'phonics', emoji: '🦐', color: '#ec407a', blendable: true,
         title: '3-Letter Blends', subtitle: 'scr, spl, spr, squ, str, thr, shr',
         items: [
             '[scr]ub', '[scr]eam', '[spl]ash', '[spl]it', '[spr]ing', '[spr]ay', '[squ]ash',
@@ -151,7 +164,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'end-blends', group: 'phonics', emoji: '🏕️', color: '#7e57c2', blendable: true,
+        id: 'end-blends', stage: 4, group: 'phonics', emoji: '🏕️', color: '#7e57c2', blendable: true,
         title: 'Ending Blends', subtitle: 'nd, mp, st, lk, nt, sk, ft',
         items: [
             'ha[nd]', 'sa[nd]', 'ju[mp]', 'la[mp]', 'ca[mp]', 'ne[st]', 'fa[st]', 'mi[lk]',
@@ -159,7 +172,7 @@ window.SITEWORDY_LISTS = [
         ]
     },
     {
-        id: 'digraphs', group: 'phonics', emoji: '🐳', color: '#0097a7', blendable: true,
+        id: 'digraphs', stage: 2, group: 'phonics', emoji: '🐳', color: '#0097a7', blendable: true,
         title: 'Digraphs', subtitle: 'sh, ch, th, wh, ck, ph',
         items: [
             '[sh]ip', '[sh]op', 'fi[sh]', 'di[sh]', '[ch]in', '[ch]ip', 'lun[ch]', '[th]in',
