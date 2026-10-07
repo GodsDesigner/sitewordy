@@ -47,7 +47,16 @@
         </header>
 
         <main class="home-main">
-            <h1 id="home-title" class="home-title">What do you want to practice?</h1>
+            <section class="lesson-hero" aria-labelledby="home-title">
+                <button type="button" class="wordy wordy-hero" id="home-wordy" aria-label="Hear Mr. Wordy"></button>
+                <div class="lesson-hero-body">
+                    <h1 id="home-title" class="bubble" ></h1>
+                    <button type="button" class="big-btn brand lesson-btn" id="start-lesson"><span aria-hidden="true">▶️</span> <span id="start-lesson-label">Start Today’s Lesson</span></button>
+                    <p class="muted lesson-meta" id="lesson-meta"></p>
+                </div>
+            </section>
+
+            <h2 class="group-title practice-title"><span aria-hidden="true">🎯</span> Or pick your own practice</h2>
 
             <div id="learning-path"></div>
 
@@ -110,10 +119,27 @@
         </main>
     </section>
 
+    <!-- ================= MR. WORDY (lesson guide) ================= -->
+    <section id="screen-wordy" class="screen" hidden aria-label="Today’s lesson">
+        <header class="play-bar">
+            <button type="button" class="icon-btn" id="exit-lesson" aria-label="Stop the lesson and go back">✕</button>
+            <ol class="lesson-stops" id="lesson-stops" aria-label="Lesson steps"></ol>
+        </header>
+        <main class="wordy-main">
+            <div class="wordy-talk">
+                <button type="button" class="wordy wordy-guide" id="wordy-figure" aria-label="Hear Mr. Wordy again"></button>
+                <p class="bubble" id="wordy-bubble" aria-live="polite"></p>
+            </div>
+            <div class="wordy-content" id="wordy-content"></div>
+            <div class="wordy-actions" id="wordy-actions"></div>
+        </main>
+    </section>
+
     <!-- ================= DONE ================= -->
     <section id="screen-done" class="screen" hidden aria-labelledby="done-title">
         <main class="done-main">
             <div class="done-card">
+                <div class="wordy wordy-done" id="done-wordy" aria-hidden="true"></div>
                 <div class="done-stars" id="done-stars" aria-hidden="true"></div>
                 <h1 id="done-title">Great job!</h1>
                 <p id="done-summary" class="done-summary"></p>
@@ -212,6 +238,14 @@
 
             <div class="settings">
                 <label class="setting">
+                    <span>Daily lesson length<small>Mr. Wordy plans the lesson to fit.</small></span>
+                    <select id="set-lesson">
+                        <option value="10">About 10 minutes</option>
+                        <option value="20">About 20 minutes</option>
+                        <option value="30">About 30 minutes</option>
+                    </select>
+                </label>
+                <label class="setting">
                     <span>Sound effects</span>
                     <input type="checkbox" id="set-sound" class="switch">
                 </label>
@@ -278,6 +312,7 @@
 
     <script src="js/words.js"></script>
     <script src="js/speech.js"></script>
+    <script src="js/wordy.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

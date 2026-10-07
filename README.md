@@ -13,6 +13,20 @@ Sight word and phonics practice for kids ages 3–8. Plain HTML, CSS, and JavaSc
 | `js/app.js` | Game logic, progress, stars and stickers, settings |
 | `styles.css` | Styles for both pages, including the Sky, Sunny and Night themes |
 
+## Today's Lesson (Mr. Wordy)
+
+The home screen's main button starts a guided daily lesson. Mr. Wordy (`js/wordy.js`), a talking index card, introduces each stop:
+
+1. **Warm-up**: Find It with words the child has already seen (skipped on the very first lesson)
+2. **New cards**: meet 3–5 new words one at a time (see it, hear it, say it)
+3. **Practice**: Build It with the new words (Find It for letters)
+4. **Wiggle break**: an off-screen movement prompt using a new word
+5. **Game time**: one or two rounds mixing new words, words in progress, and review; the game rotates daily
+6. **Paper time**: write the new words on paper
+7. **All done**: new words, stars, level-ups, and stickers
+
+Grown-ups set the length (about 10, 20, or 30 minutes; `LESSON_PLANS` in `js/app.js`). Shorter lessons skip the wiggle break and paper time and use smaller rounds. Lessons teach the "Up next" list at the child's level, so they rotate through that level's lists. Each finished lesson is logged per child (date, length, list, new words, stars) for future homeschool records.
+
 ## Games
 
 - **Flash Cards**: the child reads the word and a grown-up taps *Got it!* or *Practice again*. Missed words come back at the end of the round. Tap the word to hear it.
