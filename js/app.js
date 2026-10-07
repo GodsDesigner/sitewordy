@@ -25,11 +25,17 @@
     // ================= Saved state =================
     // Everything is saved per reader (child profile) on this device.
     const defaults = {
-        settings: { sound: true, rate: 0.85, timer: 0, theme: 'sky', roundSize: null, buildHide: 'auto', unlockAll: false },
+        settings: { sound: true, rate: 0.85, timer: 0, theme: 'sky', roundSize: null, buildHide: 'auto', unlockAll: false, lessonMinutes: 20 },
         progress: {},       // { listId: { word: { c: correctCount, m: missCount } } }
         stars: 0,
-        customWords: []
+        customWords: [],
+        lessons: []         // one entry per finished daily lesson
     };
+
+    // A fresh copy, so readers never share the same progress or word lists.
+    function freshDefaults() {
+        return JSON.parse(JSON.stringify(defaults));
+    }
     const AVATARS = ['🦊', '🐼', '🦁', '🐸', '🐙', '🦄', '🐢', '🦖', '🐧', '🐝', '🐬', '🦉'];
     const AVATAR_COLORS = ['#ff8a65', '#78909c', '#ffb300', '#66bb6a', '#ec407a', '#ab47bc',
         '#26a69a', '#7cb342', '#5c6bc0', '#fbc02d', '#29b6f6', '#8d6e63'];
@@ -44,7 +50,7 @@
 
     function newProfile(name, avatar, data = {}) {
         return {
-            ...defaults, ...data,
+            ...freshDefaults(), ...data,
             settings: cleanSettings(data.settings),
             id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
             name, avatar
@@ -59,7 +65,7 @@
         const saved = readJSON(STORE_KEY);
         if (saved && Array.isArray(saved.profiles)) {
             saved.profiles = saved.profiles.map(p => ({
-                ...defaults, ...p, settings: cleanSettings(p.settings)
+                ...freshDefaults(), ...p, settings: cleanSettings(p.settings)
             }));
             return saved;
         }
@@ -284,6 +290,8 @@
         $('reader-avatar').textContent = state.avatar;
         $('reader-name').textContent = state.name;
 
+        renderLessonHero();
+
         const current = currentStage();
         const next = nextUpList();
         const path = $('learning-path');
@@ -371,22 +379,37 @@
     // ================= A round of practice =================
     let round = null;
 
-    function pickWords(list, size) {
-        // Words the child is working on come first, then brand-new words from
-        // shortest to longest, then a little review of words already learned.
-        const seen = k => { const s = wordStats(list.id, k); return s.c + s.m > 0; };
-        const learning = shuffle(list.items.filter(k => seen(k) && !isLearned(list.id, k)));
-        const fresh = list.items
-            .filter(k => !seen(k))
+    function hasSeen(list, key) {
+        const stats = wordStats(list.id, key);
+        return stats.c + stats.m > 0;
+    }
+
+    function seenKeys(list) {
+        return list.items.filter(k => hasSeen(list, k));
+    }
+
+    // Words the child hasn't met yet, shortest (easiest) first.
+    function freshKeys(list) {
+        return list.items
+            .filter(k => !hasSeen(list, k))
             .map((k, i) => ({ k, i, len: parseItem(k, list).text.length }))
             .sort((a, b) => a.len - b.len || a.i - b.i)
             .map(x => x.k);
+    }
+
+    function pickWords(list, size) {
+        // Words the child is working on come first, then brand-new words from
+        // shortest to longest, then a little review of words already learned.
+        const learning = shuffle(list.items.filter(k => hasSeen(list, k) && !isLearned(list.id, k)));
+        const fresh = freshKeys(list);
         const learned = shuffle(list.items.filter(k => isLearned(list.id, k)));
         const picked = [...learning, ...fresh, ...learned].slice(0, size || list.items.length);
         return shuffle(picked);
     }
 
-    function startRound(listId, mode, size, onlyKeys) {
+    // onDone: when set (during a lesson), the round hands back to the lesson
+    // instead of showing the end-of-round screen.
+    function startRound(listId, mode, size, onlyKeys, onDone = null) {
         const list = findList(listId);
         const keys = onlyKeys ? shuffle(onlyKeys) : pickWords(list, size);
         round = {
@@ -399,7 +422,8 @@
             stars: 0,
             firstTryRight: new Set(),
             missed: new Set(),
-            retried: new Set()
+            retried: new Set(),
+            onDone
         };
         $('round-stars').textContent = '0';
         $('flash-view').hidden = mode !== 'flash';
@@ -795,6 +819,15 @@
     // ---------- End of round ----------
     function finishRound() {
         clearTimer();
+        if (round.onDone) {
+            const done = round.onDone;
+            round = null;
+            playSound('correct-sound');
+            burstConfetti(30);
+            done();
+            return;
+        }
+        MrWordy.draw($('done-wordy'), 'cheer');
         const unique = new Set(round.queue.map(i => i.key));
         const right = round.firstTryRight.size;
         const ratio = right / unique.size;
@@ -861,6 +894,7 @@
         window.speechSynthesis?.cancel();
         round = null;
         build = null;
+        lesson = null;
         renderHome();
         show('screen-home');
     }
@@ -960,6 +994,7 @@
     function fillGrownups() {
         renderReaderList();
         $('settings-title').textContent = `Settings for ${state.avatar} ${state.name}`;
+        $('set-lesson').value = String(state.settings.lessonMinutes);
         $('set-build-hide').value = state.settings.buildHide;
         $('set-unlock-all').checked = state.settings.unlockAll;
         $('set-sound').checked = state.settings.sound;
@@ -979,6 +1014,7 @@
         Speech.say('Hello! Let’s read.');
     });
     $('set-build-hide').addEventListener('change', (e) => { state.settings.buildHide = e.target.value; save(); });
+    $('set-lesson').addEventListener('change', (e) => { state.settings.lessonMinutes = Number(e.target.value); save(); });
     $('set-unlock-all').addEventListener('change', (e) => { state.settings.unlockAll = e.target.checked; save(); });
     $('set-timer').addEventListener('change', (e) => { state.settings.timer = Number(e.target.value); save(); });
     $('set-theme').addEventListener('change', (e) => { state.settings.theme = e.target.value; save(); applySettings(); });
@@ -1065,6 +1101,329 @@
         toast('Progress reset');
     });
 
+    // ================= Today's Lesson (guided by Mr. Wordy) =================
+    // A lesson is a short series of stops. Longer lessons add stops and use
+    // bigger rounds; the games themselves are the same ones kids already know.
+    const LESSON_PLANS = {
+        10: { warmup: 4, newWords: 3, games: 1, gameSize: 6, wiggle: false, paper: false },
+        20: { warmup: 6, newWords: 4, games: 1, gameSize: 10, wiggle: true, paper: false },
+        30: { warmup: 8, newWords: 5, games: 2, gameSize: 10, wiggle: true, paper: true }
+    };
+    const STOPS = {
+        warmup: { icon: '🔥', label: 'Warm-up' },
+        meet: { icon: '🃏', label: 'New cards' },
+        practice: { icon: '🧩', label: 'Practice' },
+        wiggle: { icon: '🤸', label: 'Wiggle break' },
+        game: { icon: '🎮', label: 'Game time' },
+        paper: { icon: '✏️', label: 'Paper time' },
+        done: { icon: '🏆', label: 'All done' }
+    };
+    const WIGGLES = [
+        w => `Wiggle break! Stand up and jump 3 times. Say “${w}” on every jump!`,
+        w => `Wiggle break! Whisper “${w}” very quietly… now shout “${w}”!`,
+        w => `Wiggle break! Hop like a frog and say “${w}” with every hop!`,
+        w => `Wiggle break! Reach up high, then touch your toes. Say “${w}” each time!`,
+        w => `Wiggle break! March in place and chant “${w}, ${w}, ${w}”!`
+    ];
+    let lesson = null;
+
+    function today() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function didLessonToday() {
+        return state.lessons.some(l => l.date === today());
+    }
+
+    function lessonPlan() {
+        return LESSON_PLANS[state.settings.lessonMinutes] || LESSON_PLANS[20];
+    }
+
+    // Today's lesson teaches the "up next" list at the child's level.
+    function lessonList() {
+        return nextUpList() || stageLists(currentStage())[0];
+    }
+
+    // Speak without reading emoji or curly quotes aloud.
+    function speakText(text) {
+        Speech.say(text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/[“”]/g, ''));
+    }
+
+    function homeGreeting() {
+        return didLessonToday()
+            ? `Great job today, ${state.name}! Want to play some more?`
+            : `Hi ${state.name}! I’m Mr. Wordy. Ready for today’s lesson?`;
+    }
+
+    function renderLessonHero() {
+        MrWordy.draw($('home-wordy'), 'wave');
+        $('home-title').textContent = homeGreeting();
+        $('start-lesson-label').textContent = didLessonToday() ? 'Do another lesson' : 'Start Today’s Lesson';
+        const list = lessonList();
+        $('lesson-meta').textContent = `About ${state.settings.lessonMinutes} minutes · ${list.emoji} ${list.title}`;
+    }
+
+    $('home-wordy').addEventListener('click', () => speakText(homeGreeting()));
+    $('start-lesson').addEventListener('click', startLesson);
+
+    // Warm up with words the child has already seen, wins first.
+    function warmupFrom(main, size) {
+        let best = main;
+        let bestSeen = seenKeys(main);
+        if (bestSeen.length < 3) {
+            for (const list of allLists()) {
+                if (!list.items.length || !isUnlocked(list)) continue;
+                const seen = seenKeys(list);
+                if (seen.length > bestSeen.length) { best = list; bestSeen = seen; }
+            }
+        }
+        if (bestSeen.length < 2) return null;
+        const learned = shuffle(bestSeen.filter(k => isLearned(best.id, k)));
+        const rest = shuffle(bestSeen.filter(k => !isLearned(best.id, k)));
+        return { list: best, keys: [...learned, ...rest].slice(0, size) };
+    }
+
+    function startLesson() {
+        const plan = lessonPlan();
+        const list = lessonList();
+        const newKeys = freshKeys(list).slice(0, plan.newWords);
+        const modes = list.letters ? ['find', 'flash'] : ['find', 'build', 'flash'];
+        const day = Math.floor(Date.now() / 86400000);
+
+        const stops = [];
+        const warmup = warmupFrom(list, plan.warmup);
+        if (warmup) stops.push({ type: 'warmup', ...warmup });
+        if (newKeys.length) stops.push({ type: 'meet' }, { type: 'practice' });
+        if (plan.wiggle) stops.push({ type: 'wiggle' });
+        for (let g = 0; g < plan.games; g++) stops.push({ type: 'game', mode: modes[(day + g) % modes.length] });
+        if (plan.paper) stops.push({ type: 'paper' });
+        stops.push({ type: 'done' });
+
+        lesson = { list, plan, newKeys, stops, index: -1, starsBefore: state.stars, stageBefore: currentStage() };
+        nextStop();
+    }
+
+    function lessonWords() {
+        const { list, newKeys } = lesson;
+        const keys = newKeys.length ? newKeys : shuffle(seenKeys(list)).slice(0, 4);
+        return keys.map(k => parseItem(k, list));
+    }
+
+    // Game rounds: today's new words, then words in progress, then review.
+    function gameKeys() {
+        const { list, newKeys, plan } = lesson;
+        const learning = shuffle(seenKeys(list).filter(k => !isLearned(list.id, k) && !newKeys.includes(k)));
+        const review = shuffle(list.items.filter(k => isLearned(list.id, k) && !newKeys.includes(k)));
+        return [...newKeys, ...learning, ...review].slice(0, plan.gameSize);
+    }
+
+    function lessonRound(list, mode, keys) {
+        startRound(list.id, mode, 0, keys, () => { if (lesson) nextStop(); });
+    }
+
+    function renderStops() {
+        const box = $('lesson-stops');
+        box.textContent = '';
+        lesson.stops.forEach((stop, i) => {
+            const li = document.createElement('li');
+            li.className = i < lesson.index ? 'done' : i === lesson.index ? 'current' : '';
+            li.textContent = STOPS[stop.type].icon;
+            li.title = STOPS[stop.type].label;
+            li.setAttribute('aria-label', `${STOPS[stop.type].label}${i < lesson.index ? ' (done)' : ''}`);
+            box.append(li);
+        });
+    }
+
+    // One Mr. Wordy screen: he talks, shows something, and offers buttons.
+    function wordySay({ mood = 'happy', text, content = null, actions = [] }) {
+        show('screen-wordy');
+        renderStops();
+        const figure = $('wordy-figure');
+        MrWordy.draw(figure, mood);
+        figure.classList.remove('bounce');
+        void figure.offsetWidth;
+        figure.classList.add('bounce');
+        $('wordy-bubble').textContent = text;
+        const box = $('wordy-content');
+        box.textContent = '';
+        if (content) box.append(content);
+        const row = $('wordy-actions');
+        row.textContent = '';
+        for (const action of actions) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = action.primary ? 'big-btn gotit' : 'helper-btn';
+            btn.textContent = action.label;
+            btn.addEventListener('click', action.onClick);
+            row.append(btn);
+        }
+        speakText(text);
+    }
+
+    $('wordy-figure').addEventListener('click', () => speakText($('wordy-bubble').textContent));
+    $('exit-lesson').addEventListener('click', goHome);
+
+    function wordCard(item) {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'meet-card' + (item.letter ? ' is-letter' : '');
+        const text = document.createElement('span');
+        text.className = 'word-text';
+        renderWord(text, item);
+        card.append(text);
+        card.setAttribute('aria-label', `Hear ${item.text}`);
+        card.addEventListener('click', () => Speech.say(spoken(item)));
+        return card;
+    }
+
+    function wordChips(items) {
+        const box = document.createElement('div');
+        box.className = 'word-chips lesson-chips';
+        for (const item of items) {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'word-chip';
+            renderWord(chip, item);
+            chip.addEventListener('click', () => Speech.say(spoken(item)));
+            box.append(chip);
+        }
+        return box;
+    }
+
+    function nextStop() {
+        if (!lesson) return;
+        lesson.index++;
+        const stop = lesson.stops[lesson.index];
+        const first = lesson.index === 0;
+        const hi = first ? `Hi ${state.name}! ` : 'Great job! ';
+        const { list } = lesson;
+        const noun = list.letters ? 'letter' : 'word';
+        const count = lesson.newKeys.length;
+
+        if (stop.type === 'warmup') {
+            wordySay({
+                mood: 'wave',
+                text: `${hi}Let’s warm up with ${stop.list.letters ? 'letter' : 'word'}s you’ve seen before. Listen, then tap the right card!`,
+                actions: [{ label: 'Let’s go! ▶', primary: true, onClick: () => lessonRound(stop.list, 'find', stop.keys) }]
+            });
+        } else if (stop.type === 'meet') {
+            wordySay({
+                mood: first ? 'wave' : 'happy',
+                text: `${hi}I have ${count} new ${noun} card${count === 1 ? '' : 's'} for you today. Let’s meet them!`,
+                actions: [{ label: 'Show me! ▶', primary: true, onClick: () => meetWord(0) }]
+            });
+        } else if (stop.type === 'practice') {
+            const mode = list.letters ? 'find' : 'build';
+            wordySay({
+                text: mode === 'build'
+                    ? 'Now let’s build your new words with letter tiles!'
+                    : 'Now let’s find your new letters!',
+                content: wordChips(lesson.newKeys.map(k => parseItem(k, list))),
+                actions: [{ label: 'Let’s go! ▶', primary: true, onClick: () => lessonRound(list, mode, lesson.newKeys) }]
+            });
+        } else if (stop.type === 'wiggle') {
+            const words = lessonWords();
+            const word = words[Math.floor(Math.random() * words.length)]?.text || 'read';
+            const prompt = WIGGLES[Math.floor(Math.random() * WIGGLES.length)](word);
+            wordySay({
+                mood: 'cheer',
+                text: `${hi}${prompt}`,
+                actions: [{ label: 'We did it! ✔', primary: true, onClick: nextStop }]
+            });
+        } else if (stop.type === 'game') {
+            const intro = {
+                find: 'Game time! Listen to the word, then find it.',
+                build: 'Game time! Build each word with the tiles.',
+                flash: 'Game time! Read each card out loud. Grown-up, tap Got it! or Practice again.'
+            }[stop.mode];
+            wordySay({
+                text: `${hi}${intro}`,
+                actions: [{ label: 'Play! ▶', primary: true, onClick: () => lessonRound(list, stop.mode, gameKeys()) }]
+            });
+        } else if (stop.type === 'paper') {
+            wordySay({
+                text: `${hi}Paper time! Grab a paper and a pencil. Write each ${noun} and say it out loud as you write it.`,
+                content: wordChips(lessonWords()),
+                actions: [{ label: 'All done! ✔', primary: true, onClick: nextStop }]
+            });
+        } else {
+            finishLesson();
+        }
+    }
+
+    function meetWord(i) {
+        const { list, newKeys } = lesson;
+        if (i >= newKeys.length) { nextStop(); return; }
+        const item = parseItem(newKeys[i], list);
+        const text = item.letter
+            ? `This is the letter ${item.text}. Can you say ${item.text}?`
+            : `This word is “${item.text}”. Can you say “${item.text}”?`;
+        wordySay({
+            text,
+            content: wordCard(item),
+            actions: [
+                { label: '🔊 Hear it', onClick: () => Speech.say(spoken(item)) },
+                { label: i + 1 < newKeys.length ? 'I said it! ▶' : 'I said it! ✔', primary: true, onClick: () => meetWord(i + 1) }
+            ]
+        });
+    }
+
+    function finishLesson() {
+        const { list, stageBefore, starsBefore } = lesson;
+        const items = lesson.newKeys.map(k => parseItem(k, list));
+        const stars = state.stars - starsBefore;
+        state.lessons.push({
+            date: today(),
+            minutes: state.settings.lessonMinutes,
+            list: list.id,
+            words: items.map(i => i.text),
+            stars
+        });
+        save();
+
+        const content = document.createElement('div');
+        content.className = 'lesson-summary';
+        if (items.length) content.append(wordChips(items));
+        const starLine = document.createElement('p');
+        starLine.className = 'lesson-stars';
+        starLine.textContent = `⭐ ${stars} star${stars === 1 ? '' : 's'} today`;
+        content.append(starLine);
+
+        let text = items.length
+            ? `You did it, ${state.name}! You met ${items.length} new ${list.letters ? 'letter' : 'word'} cards today. See you tomorrow!`
+            : `You did it, ${state.name}! Great practice today. See you tomorrow!`;
+        const stageNow = currentStage();
+        if (stageNow > stageBefore) {
+            const info = stageInfo(stageNow);
+            const banner = document.createElement('div');
+            banner.className = 'level-up';
+            banner.innerHTML = '<span class="level-up-emoji" aria-hidden="true"></span><span><strong>Level up!</strong><span class="level-up-text"></span></span>';
+            banner.querySelector('.level-up-emoji').textContent = info.emoji;
+            banner.querySelector('.level-up-text').textContent = `You unlocked Level ${info.stage}: ${info.title}!`;
+            content.prepend(banner);
+            text += ` And guess what? You unlocked ${info.title}!`;
+        }
+        const before = Math.floor(starsBefore / STARS_PER_STICKER);
+        const after = Math.floor(state.stars / STARS_PER_STICKER);
+        if (after > before && before < STICKERS.length) {
+            const sticker = document.createElement('div');
+            sticker.className = 'new-sticker';
+            sticker.innerHTML = '<span class="sticker-big"></span><span>New sticker for your sticker book!</span>';
+            sticker.querySelector('.sticker-big').textContent = STICKERS[Math.min(after, STICKERS.length) - 1];
+            content.append(sticker);
+        }
+
+        wordySay({
+            mood: 'cheer',
+            text,
+            content,
+            actions: [{ label: 'Back home 🏠', primary: true, onClick: goHome }]
+        });
+        playSound('correct-sound');
+        burstConfetti(80);
+    }
+
     // ================= Readers (child profiles) =================
     function showProfiles() {
         const grid = $('profile-grid');
@@ -1097,9 +1456,7 @@
         applySettings();
         renderHome();
         show('screen-home');
-        // Older kids land on their own level instead of scrolling past the early ones.
-        const here = document.querySelector('.stage.current');
-        if (here && currentStage() > 1) here.scrollIntoView({ block: 'start' });
+        speakText(homeGreeting());
     }
 
     $('switch-reader').addEventListener('click', showProfiles);

@@ -284,6 +284,71 @@ button:disabled { cursor: default; }
 .choice.right { border-color: var(--good); background: #e5f8ee; color: #1f2a44; animation: pop 0.45s ease; }
 .choice.wrong { opacity: 0.4; animation: nudge 0.4s ease; }
 
+/* Mr. Wordy and Today's Lesson */
+.wordy { display: block; padding: 0; border: 0; background: none; cursor: pointer; }
+.wordy svg { display: block; width: 100%; height: auto; overflow: visible; }
+.wordy.bounce { animation: wordy-bounce 0.6s ease; }
+.wordy:not(.bounce) svg { animation: wordy-bob 3s ease-in-out infinite; }
+
+.bubble {
+    position: relative; margin: 0; padding: 18px 22px; border-radius: 26px;
+    background: var(--surface); box-shadow: var(--shadow);
+    font-size: 1.35rem; font-weight: 600; line-height: 1.35; color: var(--text);
+}
+.bubble::before {
+    content: ''; position: absolute; left: -12px; top: 30px;
+    border: 12px solid transparent; border-left: 0; border-right-color: var(--surface);
+}
+
+.lesson-hero {
+    display: grid; grid-template-columns: 210px 1fr; align-items: center; gap: 22px;
+    margin: 4px 0 8px; padding: 20px 24px; border-radius: 36px;
+    background: rgba(255, 255, 255, 0.4);
+}
+.lesson-hero-body { display: grid; gap: 14px; justify-items: start; }
+.lesson-hero .bubble { font-size: clamp(1.3rem, 3vw, 1.7rem); }
+.lesson-btn { font-size: 1.5rem; min-height: 72px; padding: 14px 32px; }
+.lesson-meta { margin: 0; font-weight: 500; }
+.practice-title { margin-top: 32px; }
+
+.lesson-stops {
+    flex: 1; display: flex; justify-content: center; gap: 8px; margin: 0; padding: 0; list-style: none;
+}
+.lesson-stops li {
+    display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45); font-size: 1.3rem; opacity: 0.6;
+}
+.lesson-stops li.done { background: var(--good); opacity: 1; }
+.lesson-stops li.current { background: var(--surface); opacity: 1; box-shadow: 0 0 0 4px var(--accent); transform: scale(1.12); }
+
+.wordy-main {
+    display: flex; flex-direction: column; align-items: center; gap: 22px;
+    max-width: 760px; margin: 0 auto; padding: 8px 16px 40px;
+}
+.wordy-talk { display: grid; grid-template-columns: 210px 1fr; align-items: center; gap: 20px; width: 100%; }
+.wordy-content { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.wordy-content:empty { display: none; }
+.wordy-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 14px; }
+.wordy-actions .big-btn { min-width: 220px; }
+
+.meet-card {
+    display: grid; place-items: center; width: 100%; min-height: 220px; padding: 24px;
+    border: 0; border-radius: 36px; background: var(--surface); box-shadow: var(--shadow);
+    animation: card-in 0.35s ease-out;
+}
+.meet-card .word-text { font-size: clamp(4rem, 15vw, 7.5rem); }
+.lesson-chips .word-chip { font-size: 2rem; padding: 10px 22px; background: var(--surface); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1); }
+.lesson-summary { display: grid; gap: 12px; justify-items: center; width: 100%; }
+.lesson-stars { margin: 0; font-size: 1.4rem; font-weight: 700; }
+
+.wordy-done { width: 150px; margin: -10px auto 4px; }
+
+@keyframes wordy-bob { 50% { transform: translateY(-5px); } }
+@keyframes wordy-bounce {
+    0% { transform: scale(0.85) translateY(10px); opacity: 0; }
+    60% { transform: scale(1.05) translateY(-6px); opacity: 1; }
+}
+
 /* Learning path */
 .stage {
     margin: 22px 0; padding: 18px; border-radius: 30px;
@@ -576,6 +641,17 @@ button:disabled { cursor: default; }
     .build-tile { min-width: 58px; height: 66px; font-size: 2.1rem; }
     .tray { gap: 8px; padding: 12px; }
     .profile-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .lesson-hero { grid-template-columns: 1fr; justify-items: center; text-align: center; padding: 16px; }
+    .lesson-hero .wordy-hero { width: 150px; }
+    .lesson-hero-body { justify-items: center; }
+    .lesson-btn { width: 100%; font-size: 1.3rem; }
+    .bubble::before { left: 50%; top: -12px; transform: translateX(-50%); border: 12px solid transparent; border-top: 0; border-bottom-color: var(--surface); }
+    .wordy-talk { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 14px; }
+    .wordy-guide { width: 140px; }
+    .bubble { font-size: 1.15rem; }
+    .lesson-stops { gap: 4px; }
+    .lesson-stops li { width: 34px; height: 34px; font-size: 1rem; }
+    .meet-card { min-height: 170px; }
     .profile-avatar { width: 76px; height: 76px; font-size: 2.6rem; }
     .reader-chip #reader-name { display: none; }
     .reader-chip { padding: 4px; }
